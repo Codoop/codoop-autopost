@@ -35,11 +35,11 @@ Skill Pack 包含：`codoop-autopost`、`last30days`、`firecrawl`、`social-con
 ```bash
 mkdir content-operations
 cd content-operations
-cp /path/to/codoop-autopost/config.example.toml ./config.toml
+cp ~/.codex/skills/codoop-autopost/config.example.toml ./config.toml
 chmod 600 ./config.toml
 ```
 
-填写 `config.toml` 中的 Firecrawl 和 X OAuth 值即可。每次运行 Skill 或定时任务都以该运营项目为工作目录，Skill 会自动读取其中的 `config.toml`。`FIRECRAWL_API_KEY`、`FIRECRAWL_API_URL` 及 X 的四个环境变量仍可覆盖配置文件，适合 CI 或服务器。若配置文件不在默认位置，可设置 `CODOOP_AUTOPOST_CONFIG`。
+填写 `config.toml` 中的 Firecrawl 和 X OAuth 值即可。若使用其他 Agent，请从其安装目录复制同一份模板。每次运行 Skill 或定时任务都以该运营项目为工作目录，Skill 会自动读取其中的 `config.toml`。`FIRECRAWL_API_KEY`、`FIRECRAWL_API_URL` 及 X 的四个环境变量仍可覆盖配置文件，适合 CI 或服务器。若配置文件不在默认位置，可设置 `CODOOP_AUTOPOST_CONFIG`。
 
 首次运行热点发现时，主 Skill 会自动下载其私有的 `last30days` MIT 运行时到 `~/.local/share/codoop-autopost/last30days`；用户无需安装或初始化 `last30days` Skill。此步骤需要 Python、Git 和网络连接。
 
