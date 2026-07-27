@@ -6,27 +6,33 @@
 
 ## 安装
 
-克隆仓库后，只安装主工作流即可运行完整流程；不需要另装任何依赖 Skill。
+### Codex（Desktop 或 CLI）
+
+从 GitHub 插件市场安装一个 `codoop-autopost` 插件即可。它已包含热点发现、来源核验、写作、润色和 X 发布所需能力；不要另外安装 `last30days`、`firecrawl`、`social-content`、`copy-editing` 或 `x-twitter`。
 
 ```bash
-git clone https://github.com/Codoop/codoop-autopost.git
-cd codoop-autopost
-./scripts/install-skill.sh --agent codex --skill codoop-autopost
+codex plugin marketplace add Codoop/codoop-autopost
+codex plugin add codoop-autopost@codoop-autopost
 ```
 
-如需把六个 Skill 都安装为独立入口：
+安装后重启或重新打开 Codex。也可以直接对 Codex 说：
+
+```text
+Install the codoop-autopost Codex plugin from Codoop/codoop-autopost.
+```
+
+### Claude Code
 
 ```bash
-./scripts/install-skill.sh --agent codex
+/plugin marketplace add Codoop/codoop-autopost
+/plugin install codoop-autopost@codoop-autopost
 ```
 
-Claude Code 使用：
+`last30days`、`firecrawl`、`social-content`、`copy-editing` 和 `x-twitter` 仍提供独立入口，供高级用户单独使用；它们绝不是 `codoop-autopost` 的前置条件。仓库的插件组织方式与 [codoop-flow](https://github.com/Codoop/codoop-flow) 一致。
 
-```bash
-./scripts/install-skill.sh --agent claude
-```
+### 本地开发备用方式
 
-Skill Pack 包含：`codoop-autopost`、`last30days`、`firecrawl`、`social-content`、`copy-editing`、`x-twitter`。后五项可单独安装，但不是 `codoop-autopost` 的前置条件。仓库同时提供 Codex、Claude Code 和 Agent Skills 市场清单，组织方式与 [codoop-flow](https://github.com/Codoop/codoop-flow) 一致。
+只有开发或离线调试插件时，才克隆仓库并运行 `./scripts/install-skill.sh`。
 
 ## 首次使用
 
