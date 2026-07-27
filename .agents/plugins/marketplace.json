@@ -1,0 +1,20 @@
+{
+  "name": "codoop-autopost",
+  "interface": {
+    "displayName": "codoop-autopost"
+  },
+  "plugins": [
+    {
+      "name": "codoop-autopost",
+      "source": {
+        "source": "local",
+        "path": "."
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

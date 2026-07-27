@@ -12,12 +12,12 @@
 
 | 阶段 | codoop-autopost 内部组件 | 上游复用策略 |
 | --- | --- | --- |
-| 热点发现 | `discover` | 首次初始化时拉取并固定 `last30days` 的 MIT 运行时到本 Skill 的私有 vendor 目录；也可指向用户已单独安装的副本。不要求用户额外安装该 Skill。 |
+| 热点发现 | `discover` | 首次初始化时拉取并固定 `last30days` 的 MIT 运行时到用户数据目录 `~/.local/share/codoop-autopost/last30days`；也可指向用户已单独安装的副本。不要求用户额外安装该 Skill。 |
 | 一手来源核验 | `verify` | 用一个小型 Firecrawl HTTP 客户端调用用户配置的 API 或兼容自托管端点；不复制或捆绑 Firecrawl 的 AGPL 源码。 |
 | 写作与润色 | `draft`、`edit` | 将适合本项目的写作、语气和事实保护规则写进本 Skill；不在运行时调用外部 `social-content`、`copy-editing` Skill。 |
 | X 发布 | `publish` | 只保留 X 官方 API 的 OAuth 发帖能力。可审计地复用/改写 `x-twitter` 的 MIT 发布路径，但不暴露搜索、互动、关注、回复或浏览器自动化能力。 |
 
-上游代码或规则只可作为项目的内部实现：例如初始化后存在的 `vendor/last30days/`、内部 Python 模块和本 Skill 的提示规则。Skill 的唯一公开入口是 `codoop-autopost`；用户也可以单独使用上游 Skill，但这不是本 Skill 的安装前提。
+上游代码或规则只可作为项目的内部实现：例如初始化后用户数据目录中的 `last30days/`、内部 Python 模块和本 Skill 的提示规则。Skill 的唯一公开入口是 `codoop-autopost`；用户也可以单独使用上游 Skill，但这不是本 Skill 的安装前提。
 
 ## 不可绕过的安全门
 
@@ -34,7 +34,7 @@
 
 ## 最小可移植实现
 
-- 一个 Skill 入口：`.agents/skills/codoop-autopost/SKILL.md`。
+- 一个公开 Skill 入口：`skills/codoop-autopost/SKILL.md`，并由根目录的 Codex、Claude 和 Agent Skills 插件清单发布。
 - 一个本地 SQLite 文件保存候选、证据、草稿、批准和发布记录。
 - 一个 CLI/Skill 命令用于列出待审核稿、显式批准、安排发布时间以及执行 `publish-due`。
 - 默认 dry-run；真实发布须同时满足已批准状态和显式 `--live` 开关。

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "codoop-autopost",
+  "description": "Evidence-first X content workflow with mandatory human approval.",
+  "owner": {
+    "name": "Codoop",
+    "url": "https://github.com/Codoop"
+  },
+  "plugins": [
+    {
+      "name": "codoop-autopost",
+      "version": "0.1.0",
+      "source": ".",
+      "description": "Discover topics, verify first-party sources, draft X posts, and publish only explicitly approved scheduled content.",
+      "homepage": "https://github.com/Codoop/codoop-autopost",
+      "license": "MIT",
+      "keywords": ["content", "x", "research", "approval", "publishing"]
+    }
+  ]
+}

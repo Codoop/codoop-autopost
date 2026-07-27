@@ -9,11 +9,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-SCRIPT = Path(__file__).parents[1] / ".agents/skills/codoop-autopost/scripts/autopost.py"
-BOOTSTRAP = Path(__file__).parents[1] / ".agents/skills/codoop-autopost/scripts/bootstrap.py"
+SCRIPT = Path(__file__).parents[1] / "skills/codoop-autopost/scripts/autopost.py"
+BOOTSTRAP = Path(__file__).parents[1] / "skills/codoop-autopost/scripts/bootstrap.py"
 SPEC = importlib.util.spec_from_file_location("autopost", SCRIPT)
 autopost = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(autopost)
+BOOTSTRAP_SPEC = importlib.util.spec_from_file_location("bootstrap", BOOTSTRAP)
+bootstrap = importlib.util.module_from_spec(BOOTSTRAP_SPEC)
+BOOTSTRAP_SPEC.loader.exec_module(bootstrap)
 
 
 class WorkflowTests(unittest.TestCase):
@@ -103,6 +106,9 @@ class ExternalAdapterTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0)
         self.assertIn("Initialize the bundled last30days runtime", result.stdout)
+
+    def test_vendor_runtime_lives_outside_the_installed_skill(self):
+        self.assertEqual(bootstrap.vendor_dir(Path("/tmp/codoop-data")), Path("/tmp/codoop-data/last30days"))
 
 
 if __name__ == "__main__":

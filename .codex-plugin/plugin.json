@@ -1,0 +1,29 @@
+{
+  "name": "codoop-autopost",
+  "version": "0.1.0",
+  "description": "Evidence-first X content workflow with human approval before publication.",
+  "author": {
+    "name": "Codoop",
+    "url": "https://github.com/Codoop"
+  },
+  "homepage": "https://github.com/Codoop/codoop-autopost",
+  "repository": "https://github.com/Codoop/codoop-autopost",
+  "license": "MIT",
+  "keywords": ["content", "x", "research", "firecrawl", "approval", "publishing"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "codoop-autopost",
+    "shortDescription": "Evidence-first X publishing",
+    "longDescription": "Discover timely discussions, verify primary sources, draft in your voice, and publish a single X post only after explicit human approval.",
+    "developerName": "Codoop",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write", "Interactive"],
+    "websiteURL": "https://github.com/Codoop/codoop-autopost",
+    "defaultPrompt": [
+      "Set up codoop-autopost.",
+      "Find a topic, verify primary sources, and prepare an X post for my approval.",
+      "Show my approved posts that are due for publication."
+    ],
+    "brandColor": "#111827"
+  }
+}

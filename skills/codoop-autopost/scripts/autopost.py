@@ -110,7 +110,9 @@ def last30days_argv(topic: str, script: Path) -> list[str]:
 
 def discover(topic: str) -> dict:
     configured = os.environ.get("CODOOP_LAST30DAYS_DIR")
-    root = Path(configured) if configured else Path(__file__).parents[1] / "vendor" / "last30days"
+    root = Path(configured) if configured else Path(
+        os.environ.get("CODOOP_AUTOPOST_HOME", Path.home() / ".local" / "share" / "codoop-autopost")
+    ) / "last30days"
     script = root / "scripts" / "last30days.py"
     if not script.is_file():
         raise RuntimeError("last30days is not initialized; run scripts/bootstrap.py or set CODOOP_LAST30DAYS_DIR")
