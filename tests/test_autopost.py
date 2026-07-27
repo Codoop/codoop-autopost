@@ -136,6 +136,19 @@ class ExternalAdapterTests(unittest.TestCase):
         self.assertEqual(settings.firecrawl_api_url, "https://firecrawl.example/v2")
         self.assertEqual(settings.x_credentials, ("consumer", "secret", "token", "access-secret"))
 
+    def test_configuration_reads_workspace_config_by_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, "config.toml").write_text('[firecrawl]\napi_key = "workspace-key"\n')
+            previous_directory = Path.cwd()
+            try:
+                os.chdir(directory)
+                with patch.dict(os.environ, {}, clear=True):
+                    settings = autopost.Settings.load()
+            finally:
+                os.chdir(previous_directory)
+
+        self.assertEqual(settings.firecrawl_api_key, "workspace-key")
+
     def test_bootstrap_help_does_not_download_a_vendor(self):
         result = subprocess.run([sys.executable, str(BOOTSTRAP), "--help"], capture_output=True, text=True)
 

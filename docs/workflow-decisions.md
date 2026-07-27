@@ -38,7 +38,7 @@
 - 一个本地 SQLite 文件保存证据、草稿、批准和发布记录；热点候选由 `last30days` 输出供人工筛选。
 - 一个 CLI/Skill 命令用于列出待审核稿、显式批准、安排发布时间以及执行 `publish-due`。
 - 默认 dry-run；真实发布须同时满足已批准状态和显式 `--live` 开关。
-- 用户凭据放在 `~/.config/codoop-autopost/config.toml`；环境变量可覆盖，真实凭据绝不写入仓库或 SQLite。
+- 用户凭据放在每个运营项目根目录的 `config.toml`；环境变量可覆盖，真实凭据绝不写入工单或 SQLite。
 - 定时器由用户机器的 cron/launchd 或部署环境触发 `publish-due`；Skill 不自行常驻或自行发布。
 
 ## 许可证与归属

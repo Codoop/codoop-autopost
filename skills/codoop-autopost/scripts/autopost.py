@@ -52,7 +52,7 @@ class Settings:
     @classmethod
     def load(cls, path: Path | None = None) -> "Settings":
         configured_path = os.environ.get("CODOOP_AUTOPOST_CONFIG")
-        config_path = path or (Path(configured_path) if configured_path else Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "codoop-autopost" / "config.toml")
+        config_path = path or (Path(configured_path) if configured_path else Path.cwd() / "config.toml")
         if config_path.is_file():
             with config_path.open("rb") as file:
                 config = tomllib.load(file)

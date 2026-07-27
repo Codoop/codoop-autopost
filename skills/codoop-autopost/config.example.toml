@@ -1,4 +1,4 @@
-# Copy to ~/.config/codoop-autopost/config.toml and keep the real file private.
+# Copy to config.toml in the root of one content-operations workspace and keep it private.
 
 [firecrawl]
 api_key = ""
