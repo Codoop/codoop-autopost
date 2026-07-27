@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 SCRIPT = Path(__file__).parents[1] / "skills/codoop-autopost/scripts/autopost.py"
 BOOTSTRAP = Path(__file__).parents[1] / "skills/codoop-autopost/scripts/bootstrap.py"
+CONTENT_TICKET_SCRIPT = Path(__file__).parents[1] / "skills/codoop-content-ticket/scripts/content_ticket.py"
 SPEC = importlib.util.spec_from_file_location("autopost", SCRIPT)
 autopost = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(autopost)
@@ -235,6 +236,22 @@ class ExternalAdapterTests(unittest.TestCase):
             bootstrap.vendor_script(Path("/tmp/codoop-data")),
             Path("/tmp/codoop-data/last30days/skills/last30days/scripts/last30days.py"),
         )
+
+
+class PluginSkillTests(unittest.TestCase):
+    def test_plugin_bundles_init_ticket_and_grilling_skills(self):
+        root = Path(__file__).parents[1] / "skills"
+
+        self.assertTrue((root / "codoop-autopost-init" / "SKILL.md").is_file())
+        self.assertTrue((root / "codoop-content-ticket" / "SKILL.md").is_file())
+        self.assertTrue((root / "grilling" / "SKILL.md").is_file())
+        self.assertTrue(CONTENT_TICKET_SCRIPT.is_file())
+
+    def test_content_ticket_wrapper_uses_the_ticket_workflow(self):
+        result = subprocess.run([sys.executable, str(CONTENT_TICKET_SCRIPT), "--help"], capture_output=True, text=True)
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Create an empty content ticket", result.stdout)
 
 
 if __name__ == "__main__":

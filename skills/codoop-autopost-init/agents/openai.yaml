@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codoop Autopost Init"
+  short_description: "Define and confirm a project’s content standards."
+  default_prompt: "Use $codoop-autopost-init to set up this content-operations project."
