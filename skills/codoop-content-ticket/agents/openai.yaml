@@ -1,4 +1,0 @@
-interface:
-  display_name: "Codoop Content Ticket"
-  short_description: "Run one verified content ticket safely."
-  default_prompt: "Use $codoop-content-ticket to create a verified content ticket for this project."
