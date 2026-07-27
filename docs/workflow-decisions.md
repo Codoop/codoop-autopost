@@ -1,6 +1,6 @@
 # codoop-autopost 工作流决策
 
-状态：已确认架构方向，待实现。
+状态：第一版已实现。
 
 ## 目标
 
@@ -21,25 +21,24 @@
 
 ## 不可绕过的安全门
 
-状态只能单向流转：
+工单状态只单向流转：
 
-`discovered → verified → drafted → approved → scheduled → publishing → published | failed`
+`draft → pending → done`
 
 - 仅 `verified` 的证据包可进入写作。
 - 每条关键主张都保存事实、URL、来源类型、发布日期和原文摘录；无法确认或来源冲突的主张不得进入草稿。
 - 草稿显式标记“可验证事实 / 他人观点 / 作者分析”。
-- 仅用户明确批准的 `approved` 内容可被调度；调度器只读取 `approved` 或 `scheduled` 内容。
-- 发布前写入幂等键和内容哈希；成功后保存 X 帖子 ID、URL、发布时间；失败保留正文、状态和错误原因，绝不静默重试或重复发布。
+- 仅用户明确批准、已排程的 `pending` 工单可被调度器读取。
+- 发布前在工单目录创建排它锁；成功后保存 X 帖子 ID、URL、发布时间并置为 `done`；失败保留 `pending` 状态和错误原因，绝不静默重试或重复发布。
 - 第一版只支持 X，且只用官方 API；禁止浏览器自动化、自动互动和自动批准。
 
 ## 最小可移植实现
 
 - 六个公开 Skill 入口位于 `skills/`，并由根目录的 Codex、Claude 和 Agent Skills 插件清单分别发布。
-- 一个本地 SQLite 文件保存证据、草稿、批准和发布记录；热点候选由 `last30days` 输出供人工筛选。
-- 运营项目将每次内容操作保存在 `tickets/<ticket-id>/`，其中按 `discovery/`、`verification/`、`writing/`、`review/` 和 `publish/` 保存可审核产物；`ticket.toml` 维护 `draft`、`pending`、`done` 状态。
+- 运营项目将每次内容操作完整保存在 `tickets/<ticket-id>/`，其中按 `discovery/`、`verification/`、`writing/`、`review/` 和 `publish/` 保存可审核产物；`ticket.toml` 维护 `draft`、`pending`、`done` 状态。没有 SQLite 或隐藏运行时状态。
 - 一个 CLI/Skill 命令用于列出待审核稿、显式批准、安排发布时间以及执行 `publish-due`。
 - 默认 dry-run；真实发布须同时满足已批准状态和显式 `--live` 开关。
-- 用户凭据放在每个运营项目根目录的 `config.toml`；环境变量可覆盖，真实凭据绝不写入工单或 SQLite。
+- 用户凭据放在每个运营项目根目录的 `config.toml`；环境变量可覆盖，真实凭据绝不写入工单。
 - 定时器由用户机器的 cron/launchd 或部署环境触发 `publish-due`；Skill 不自行常驻或自行发布。
 
 ## 许可证与归属

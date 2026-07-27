@@ -23,19 +23,30 @@ BOOTSTRAP_SPEC.loader.exec_module(bootstrap)
 class WorkflowTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
-        self.store = autopost.Store(Path(self.directory.name) / "autopost.db")
-        self.draft = self.store.create_draft("AI research", "A verified claim.")
+        self.store = autopost.TicketStore(Path(self.directory.name))
+        self.draft = self.store.create_ticket("AI research", "A verified claim.")
 
     def tearDown(self):
         self.directory.cleanup()
 
     def test_draft_requires_verified_evidence_before_approval(self):
+        self.store.submit(self.draft["id"])
         with self.assertRaisesRegex(ValueError, "verified evidence"):
             self.store.approve(self.draft["id"])
 
+    def test_ticket_keeps_all_stage_artifacts_in_its_folder(self):
+        ticket = Path(self.directory.name) / "tickets" / self.draft["id"]
+
+        self.assertEqual(self.draft["status"], "draft")
+        self.assertTrue((ticket / "ticket.toml").is_file())
+        for path in ("discovery", "verification", "writing", "review", "publish"):
+            self.assertTrue((ticket / path).is_dir())
+        self.assertEqual((ticket / "writing" / "drafts.md").read_text(), "A verified claim.\n")
+        self.assertEqual((ticket / "review" / "final.md").read_text(), "A verified claim.\n")
+
     def test_draft_rejects_text_over_x_limit(self):
         with self.assertRaisesRegex(ValueError, "280"):
-            self.store.create_draft("AI research", "x" * 281)
+            self.store.create_ticket("AI research", "x" * 281)
 
     def test_evidence_requires_publication_date_and_explicit_verification(self):
         with self.assertRaisesRegex(ValueError, "publication date"):
@@ -45,6 +56,7 @@ class WorkflowTests(unittest.TestCase):
         self.store.add_evidence(
             self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text", False
         )
+        self.store.submit(self.draft["id"])
         with self.assertRaisesRegex(ValueError, "verified evidence"):
             self.store.approve(self.draft["id"])
 
@@ -52,37 +64,55 @@ class WorkflowTests(unittest.TestCase):
         self.store.add_evidence(
             self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text", True
         )
+        self.store.submit(self.draft["id"])
         self.store.approve(self.draft["id"])
         self.store.schedule(self.draft["id"], datetime.now(UTC) - timedelta(seconds=1))
 
         published = self.store.publish_due(lambda body: {"id": "123", "url": "https://x.com/me/status/123"})
 
         self.assertEqual([item["id"] for item in published], [self.draft["id"]])
-        self.assertEqual(self.store.get(self.draft["id"])["status"], "published")
+        self.assertEqual(self.store.get(self.draft["id"])["status"], "done")
+        receipt = Path(self.directory.name) / "tickets" / self.draft["id"] / "publish" / "receipt.json"
+        self.assertEqual(json.loads(receipt.read_text())["status"], "published")
         self.assertEqual(self.store.publish_due(lambda body: self.fail("must not publish twice")), [])
 
     def test_failed_publish_keeps_draft_and_error(self):
         self.store.add_evidence(
             self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text", True
         )
+        self.store.submit(self.draft["id"])
         self.store.approve(self.draft["id"])
         self.store.schedule(self.draft["id"], datetime.now(UTC) - timedelta(seconds=1))
 
         self.store.publish_due(lambda body: (_ for _ in ()).throw(RuntimeError("X unavailable")))
 
         item = self.store.get(self.draft["id"])
-        self.assertEqual(item["status"], "failed")
+        self.assertEqual(item["status"], "pending")
         self.assertEqual(item["error"], "X unavailable")
         self.assertEqual(item["body"], "A verified claim.")
+        self.assertEqual(self.store.publish_due(lambda body: self.fail("must not retry failed post")), [])
 
     def test_due_queue_excludes_future_posts(self):
         self.store.add_evidence(
             self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text", True
         )
+        self.store.submit(self.draft["id"])
         self.store.approve(self.draft["id"])
         self.store.schedule(self.draft["id"], datetime.now(UTC) + timedelta(days=1))
 
         self.assertEqual(self.store.due(), [])
+
+    def test_publish_lock_prevents_a_second_publisher_from_sending(self):
+        self.store.add_evidence(
+            self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text", True
+        )
+        self.store.submit(self.draft["id"])
+        self.store.approve(self.draft["id"])
+        self.store.schedule(self.draft["id"], datetime.now(UTC) - timedelta(seconds=1))
+        lock = Path(self.directory.name) / "tickets" / self.draft["id"] / "publish" / "publish.lock"
+        lock.write_text("another publisher")
+
+        self.assertEqual(self.store.publish_due(lambda body: self.fail("must not publish while locked")), [])
 
 
 class ExternalAdapterTests(unittest.TestCase):
@@ -115,7 +145,7 @@ class ExternalAdapterTests(unittest.TestCase):
     def test_last30days_command_uses_machine_readable_output(self):
         command = autopost.last30days_argv("AI agents", Path("/tmp/last30days.py"))
 
-        self.assertEqual(command[-4:], ["AI agents", "--emit=json", "--save-dir", ".codoop-autopost/research"])
+        self.assertEqual(command[-2:], ["AI agents", "--emit=json"])
 
     def test_discovery_bootstraps_its_own_runtime(self):
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CODOOP_AUTOPOST_HOME": directory}):

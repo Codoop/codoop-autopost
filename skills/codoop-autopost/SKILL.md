@@ -16,11 +16,11 @@ cd /path/to/content-operations
 AUTOPOST_DIR="${CODEX_HOME:-$HOME/.codex}/skills/codoop-autopost"
 ```
 
-Copy `$AUTOPOST_DIR/config.example.toml` to `./config.toml` in the content-operations workspace, add Firecrawl and X credentials, then restrict it to the current user (`chmod 600 ./config.toml`). Firecrawl is required only to inspect sources; X credentials are required only for live publication. Environment variables override the file, and `CODOOP_AUTOPOST_CONFIG` can select another config path. Run scheduled commands with this workspace as their working directory. Never write credentials to the database or a draft.
+Copy `$AUTOPOST_DIR/config.example.toml` to `./config.toml` in the content-operations workspace, add Firecrawl and X credentials, then restrict it to the current user (`chmod 600 ./config.toml`). Firecrawl is required only to inspect sources; X credentials are required only for live publication. Environment variables override the file, and `CODOOP_AUTOPOST_CONFIG` can select another config path. Run scheduled commands with this workspace as their working directory. Never write credentials to a ticket.
 
 ## Ticket workspace
 
-Create one folder under `tickets/` for every content operation. Keep its staged artifacts in `discovery/`, `verification/`, `writing/`, `review/`, and `publish/`. The root `ticket.toml` uses only `draft`, `pending`, and `done`: begin in `draft`; move to `pending` only after creating `review/final.md`; move to `done` only after a successful publication is recorded in `publish/receipt.json`. Keep a publish failure in `pending` with its reason in `publish/receipt.json` for human action.
+Create one folder under `tickets/` for every content operation. Keep its staged artifacts in `discovery/`, `verification/`, `writing/`, `review/`, and `publish/`. The root `ticket.toml` uses only `draft`, `pending`, and `done`: begin in `draft`; use `submit` to move to `pending` after creating `review/final.md`; move to `done` only after a successful publication is recorded in `publish/receipt.json`. Keep a publish failure in `pending` with its reason in `publish/receipt.json` for human action. The ticket folder is the only state store; no database is used.
 
 ## Workflow
 
@@ -44,16 +44,17 @@ Create one folder under `tickets/` for every content operation. Keep its staged 
 
    ```bash
    python3 "$AUTOPOST_DIR/scripts/autopost.py" draft "TOPIC" "POST TEXT"
-   python3 "$AUTOPOST_DIR/scripts/autopost.py" evidence DRAFT_ID "CLAIM" "URL" "SOURCE TYPE" "EXCERPT" --published-at "YYYY-MM-DD" --verified
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" evidence TICKET_ID "CLAIM" "URL" "SOURCE TYPE" "EXCERPT" --published-at "YYYY-MM-DD" --verified
    ```
 
    Edit for clarity and the user's voice, but do not change a fact, number, quotation, or source. If an edit needs a factual change, re-verify it first.
 
-4. Ask for review. Do not call `approve` unless the user explicitly identifies the draft and says to approve it. Approval fails without saved verified evidence.
+4. Place the final text in `review/final.md`, then submit it for review. Do not call `approve` unless the user explicitly identifies the ticket and says to approve it. Approval fails without saved verified evidence.
 
    ```bash
-   python3 "$AUTOPOST_DIR/scripts/autopost.py" approve DRAFT_ID
-   python3 "$AUTOPOST_DIR/scripts/autopost.py" schedule DRAFT_ID "2026-08-01T09:00:00-07:00"
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" submit TICKET_ID
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" approve TICKET_ID
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" schedule TICKET_ID "2026-08-01T09:00:00-07:00"
    ```
 
 5. Inspect the due queue before live publication:
@@ -62,7 +63,7 @@ Create one folder under `tickets/` for every content operation. Keep its staged 
    python3 "$AUTOPOST_DIR/scripts/autopost.py" publish-due
    ```
 
-   A scheduler may invoke `x-twitter` after an explicit user instruction. A successful publication records the X ID, URL, and timestamp. A failure retains the body and error as `failed`; it is not retried automatically.
+   A scheduler may invoke `x-twitter` after an explicit user instruction. A successful publication records the X ID, URL, and timestamp. A failure remains `pending` with its reason in `publish/receipt.json`; it is not retried automatically.
 
 ## Non-negotiable rules
 

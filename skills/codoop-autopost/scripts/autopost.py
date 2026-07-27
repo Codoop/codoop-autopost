@@ -10,7 +10,6 @@ import hmac
 import json
 import os
 import secrets
-import sqlite3
 import subprocess
 import sys
 import tomllib
@@ -21,7 +20,7 @@ from typing import Callable
 from urllib import parse, request
 
 
-STATUSES = {"drafted", "approved", "scheduled", "publishing", "published", "failed"}
+STATUSES = {"draft", "pending", "done"}
 
 
 def utc_now() -> str:
@@ -154,7 +153,7 @@ class XPublisher:
 
 
 def last30days_argv(topic: str, script: Path) -> list[str]:
-    return [sys.executable, str(script), topic, "--emit=json", "--save-dir", ".codoop-autopost/research"]
+    return [sys.executable, str(script), topic, "--emit=json"]
 
 
 def discovery_script() -> Path:
@@ -186,89 +185,77 @@ def discover(topic: str) -> dict:
         raise RuntimeError(f"last30days did not return JSON: {error}") from error
 
 
-class Store:
-    def __init__(self, path: Path):
-        self.path = path
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
-            connection.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS drafts (
-                    id TEXT PRIMARY KEY,
-                    topic TEXT NOT NULL,
-                    body TEXT NOT NULL,
-                    content_hash TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    scheduled_at TEXT,
-                    published_id TEXT,
-                    published_url TEXT,
-                    published_at TEXT,
-                    error TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS evidence (
-                    id TEXT PRIMARY KEY,
-                    draft_id TEXT NOT NULL REFERENCES drafts(id),
-                    claim TEXT NOT NULL,
-                    url TEXT NOT NULL,
-                    source_type TEXT NOT NULL,
-                    published_at TEXT,
-                    excerpt TEXT NOT NULL,
-                    verified INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL
-                );
-                """
-            )
+class TicketStore:
+    """One auditable content-operation folder per post; no separate database."""
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.path)
-        connection.row_factory = sqlite3.Row
-        return connection
+    def __init__(self, workspace: Path):
+        self.tickets = workspace / "tickets"
+        self.tickets.mkdir(parents=True, exist_ok=True)
 
-    def create_draft(self, topic: str, body: str) -> dict:
+    def create_ticket(self, topic: str, body: str) -> dict:
         if not topic.strip() or not body.strip():
             raise ValueError("topic and body are required")
         if len(body.strip()) > 280:
             raise ValueError("X posts must be 280 characters or fewer")
         now = utc_now()
+        ticket_id = f"T-{datetime.now(UTC):%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:8]}"
+        directory = self.tickets / ticket_id
+        directory.mkdir()
+        for stage in ("discovery", "verification", "writing", "review", "publish"):
+            (directory / stage).mkdir()
+        (directory / "verification" / "source-snapshots").mkdir()
+        self._write_text(directory / "writing" / "drafts.md", f"{body.strip()}\n")
+        self._write_text(directory / "writing" / "edited.md", f"{body.strip()}\n")
+        self._write_text(directory / "writing" / "brief.md", f"# Brief\n\nTopic: {topic.strip()}\n")
+        self._write_text(directory / "review" / "final.md", f"{body.strip()}\n")
+        self._write_text(directory / "review" / "approval.md", "")
+        self._write_text(directory / "discovery" / "candidates.md", "# Candidates\n")
+        self._write_text(directory / "discovery" / "selection.md", "# Selection\n")
+        self._write_text(directory / "verification" / "evidence.md", "# Evidence\n")
+        self._write_text(directory / "verification" / "claims.md", "# Claims\n")
         item = {
-            "id": str(uuid.uuid4()),
+            "id": ticket_id,
             "topic": topic.strip(),
             "body": body.strip(),
+            "platform": "x",
             "content_hash": hashlib.sha256(body.strip().encode()).hexdigest(),
-            "status": "drafted",
+            "status": "draft",
+            "verified_evidence_count": 0,
             "created_at": now,
             "updated_at": now,
         }
-        with self._connect() as connection:
-            connection.execute(
-                "INSERT INTO drafts (id, topic, body, content_hash, status, created_at, updated_at) "
-                "VALUES (:id, :topic, :body, :content_hash, :status, :created_at, :updated_at)",
-                item,
-            )
-        return self.get(item["id"])
+        self._write_ticket(directory, item)
+        return self.get(ticket_id)
 
-    def get(self, draft_id: str) -> dict:
-        with self._connect() as connection:
-            row = connection.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,)).fetchone()
-        if row is None:
-            raise ValueError(f"unknown draft: {draft_id}")
-        return dict(row)
+    def get(self, ticket_id: str) -> dict:
+        directory = self._directory(ticket_id)
+        path = directory / "ticket.toml"
+        if not path.is_file():
+            raise ValueError(f"unknown ticket: {ticket_id}")
+        with path.open("rb") as file:
+            item = tomllib.load(file)
+        if item.get("status") not in STATUSES:
+            raise RuntimeError(f"invalid ticket status: {item.get('status')}")
+        receipt = directory / "publish" / "receipt.json"
+        if receipt.is_file():
+            try:
+                outcome = json.loads(receipt.read_text())
+                if outcome.get("status") == "failed":
+                    item["error"] = outcome.get("error", "publication failed")
+            except json.JSONDecodeError:
+                raise RuntimeError(f"invalid publish receipt: {receipt}") from None
+        return item
 
     def list(self, status: str | None = None) -> list[dict]:
         if status and status not in STATUSES:
             raise ValueError(f"unknown status: {status}")
-        query, values = "SELECT * FROM drafts", ()
-        if status:
-            query, values = f"{query} WHERE status = ?", (status,)
-        with self._connect() as connection:
-            return [dict(row) for row in connection.execute(f"{query} ORDER BY created_at DESC", values)]
+        items = [self.get(path.name) for path in self.tickets.iterdir() if path.is_dir() and (path / "ticket.toml").is_file()]
+        return sorted((item for item in items if not status or item["status"] == status), key=lambda item: item["created_at"], reverse=True)
 
     def add_evidence(
-        self, draft_id: str, claim: str, url: str, source_type: str, published_at: str | None, excerpt: str, verified: bool
+        self, ticket_id: str, claim: str, url: str, source_type: str, published_at: str | None, excerpt: str, verified: bool
     ) -> dict:
-        self._require_status(draft_id, "drafted")
+        item = self._require_status(ticket_id, "draft")
         if not all(value.strip() for value in (claim, url, source_type, excerpt)):
             raise ValueError("claim, url, source type, and excerpt are required")
         if not published_at or not published_at.strip():
@@ -277,108 +264,146 @@ class Store:
             date.fromisoformat(published_at)
         except ValueError as error:
             raise ValueError("publication date must use YYYY-MM-DD") from error
-        item = {
-            "id": str(uuid.uuid4()),
-            "draft_id": draft_id,
-            "claim": claim.strip(),
-            "url": url.strip(),
-            "source_type": source_type.strip(),
-            "published_at": published_at,
-            "excerpt": excerpt.strip(),
-            "verified": int(verified),
-            "created_at": utc_now(),
-        }
-        with self._connect() as connection:
-            connection.execute(
-                "INSERT INTO evidence (id, draft_id, claim, url, source_type, published_at, excerpt, verified, created_at) "
-                "VALUES (:id, :draft_id, :claim, :url, :source_type, :published_at, :excerpt, :verified, :created_at)",
-                item,
-            )
-        return item
+        directory = self._directory(ticket_id)
+        entry = (
+            f"\n## {utc_now()}\n\n- Claim: {claim.strip()}\n- URL: {url.strip()}\n"
+            f"- Source type: {source_type.strip()}\n- Published: {published_at.strip()}\n"
+            f"- Verified: {'yes' if verified else 'no'}\n\n> {excerpt.strip()}\n"
+        )
+        with (directory / "verification" / "evidence.md").open("a") as file:
+            file.write(entry)
+        if verified:
+            item["verified_evidence_count"] = int(item.get("verified_evidence_count", 0)) + 1
+        item["updated_at"] = utc_now()
+        self._write_ticket(directory, item)
+        return self.get(ticket_id)
 
-    def approve(self, draft_id: str) -> dict:
-        self._require_status(draft_id, "drafted")
-        with self._connect() as connection:
-            evidence = connection.execute(
-                "SELECT 1 FROM evidence WHERE draft_id = ? AND verified = 1 LIMIT 1", (draft_id,)
-            ).fetchone()
-            if evidence is None:
-                raise ValueError("verified evidence is required before approval")
-            connection.execute("UPDATE drafts SET status = 'approved', updated_at = ? WHERE id = ?", (utc_now(), draft_id))
-        return self.get(draft_id)
+    def submit(self, ticket_id: str) -> dict:
+        item = self._require_status(ticket_id, "draft")
+        final = self._directory(ticket_id) / "review" / "final.md"
+        if not final.is_file() or not final.read_text().strip():
+            raise ValueError("review/final.md is required before submission")
+        item["status"] = "pending"
+        item["updated_at"] = utc_now()
+        self._write_ticket(self._directory(ticket_id), item)
+        return self.get(ticket_id)
 
-    def schedule(self, draft_id: str, when: datetime) -> dict:
-        self._require_status(draft_id, "approved")
+    def approve(self, ticket_id: str) -> dict:
+        item = self._require_status(ticket_id, "pending")
+        if int(item.get("verified_evidence_count", 0)) < 1:
+            raise ValueError("verified evidence is required before approval")
+        item["approved_at"] = utc_now()
+        item["updated_at"] = utc_now()
+        self._write_text(self._directory(ticket_id) / "review" / "approval.md", f"Approved at {item['approved_at']}\n")
+        self._write_ticket(self._directory(ticket_id), item)
+        return self.get(ticket_id)
+
+    def schedule(self, ticket_id: str, when: datetime) -> dict:
+        item = self._require_status(ticket_id, "pending")
+        if not item.get("approved_at"):
+            raise ValueError("ticket must be approved before scheduling")
         if when.tzinfo is None:
             raise ValueError("scheduled time must include a timezone")
-        with self._connect() as connection:
-            connection.execute(
-                "UPDATE drafts SET status = 'scheduled', scheduled_at = ?, updated_at = ? WHERE id = ?",
-                (when.astimezone(UTC).isoformat(), utc_now(), draft_id),
-            )
-        return self.get(draft_id)
+        scheduled_at = when.astimezone(UTC).isoformat()
+        item["scheduled_at"] = scheduled_at
+        item["updated_at"] = utc_now()
+        self._write_text(self._directory(ticket_id) / "publish" / "schedule.toml", f"platform = \"x\"\nscheduled_at = {json.dumps(scheduled_at)}\n")
+        self._write_ticket(self._directory(ticket_id), item)
+        return self.get(ticket_id)
 
     def due(self, now: datetime | None = None) -> list[dict]:
-        now_text = (now or datetime.now(UTC)).astimezone(UTC).isoformat()
-        with self._connect() as connection:
-            return [dict(row) for row in connection.execute(
-                "SELECT * FROM drafts WHERE status = 'scheduled' AND scheduled_at <= ? ORDER BY scheduled_at", (now_text,)
-            )]
+        current = (now or datetime.now(UTC)).astimezone(UTC)
+        due = []
+        for item in self.list("pending"):
+            receipt = self._directory(item["id"]) / "publish" / "receipt.json"
+            if receipt.is_file() and json.loads(receipt.read_text()).get("status") == "failed":
+                continue
+            scheduled_at = item.get("scheduled_at")
+            if item.get("approved_at") and scheduled_at and datetime.fromisoformat(scheduled_at).astimezone(UTC) <= current:
+                due.append(item)
+        return sorted(due, key=lambda item: item["scheduled_at"])
 
     def publish_due(self, publisher: Callable[[str], dict], now: datetime | None = None) -> list[dict]:
-        due = self.due(now)
         completed = []
-        for item in due:
-            with self._connect() as connection:
-                changed = connection.execute(
-                    "UPDATE drafts SET status = 'publishing', updated_at = ? WHERE id = ? AND status = 'scheduled'",
-                    (utc_now(), item["id"]),
-                ).rowcount
-            if not changed:
+        for item in self.due(now):
+            directory = self._directory(item["id"])
+            lock = directory / "publish" / "publish.lock"
+            try:
+                descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
                 continue
+            os.close(descriptor)
             try:
                 response = publisher(item["body"])
-                remote_id, remote_url = response["id"], response["url"]
-                with self._connect() as connection:
-                    connection.execute(
-                        "UPDATE drafts SET status = 'published', published_id = ?, published_url = ?, "
-                        "published_at = ?, error = NULL, updated_at = ? WHERE id = ?",
-                        (remote_id, remote_url, utc_now(), utc_now(), item["id"]),
-                    )
+                receipt = {"status": "published", "id": response["id"], "url": response["url"], "published_at": utc_now()}
+                self._write_json(directory / "publish" / "receipt.json", receipt)
+                item["status"] = "done"
+                item["published_at"] = receipt["published_at"]
+                item["updated_at"] = utc_now()
+                self._write_ticket(directory, item)
                 completed.append(self.get(item["id"]))
             except Exception as error:
-                with self._connect() as connection:
-                    connection.execute(
-                        "UPDATE drafts SET status = 'failed', error = ?, updated_at = ? WHERE id = ?",
-                        (str(error), utc_now(), item["id"]),
-                    )
+                self._write_json(directory / "publish" / "receipt.json", {"status": "failed", "error": str(error), "attempted_at": utc_now()})
+            finally:
+                # ponytail: a crash leaves this lock for manual inspection, preventing an unsafe duplicate X post.
+                lock.unlink(missing_ok=True)
         return completed
 
-    def _require_status(self, draft_id: str, expected: str) -> None:
-        actual = self.get(draft_id)["status"]
-        if actual != expected:
-            raise ValueError(f"draft must be {expected}, not {actual}")
+    def _require_status(self, ticket_id: str, expected: str) -> dict:
+        item = self.get(ticket_id)
+        if item["status"] != expected:
+            raise ValueError(f"ticket must be {expected}, not {item['status']}")
+        return item
+
+    def _directory(self, ticket_id: str) -> Path:
+        if Path(ticket_id).name != ticket_id or ticket_id in {".", ".."}:
+            raise ValueError("invalid ticket id")
+        return self.tickets / ticket_id
+
+    @staticmethod
+    def _write_text(path: Path, content: str) -> None:
+        temporary = path.with_name(f".{path.name}.tmp")
+        temporary.write_text(content)
+        temporary.replace(path)
+
+    def _write_ticket(self, directory: Path, item: dict) -> None:
+        keys = (
+            "id", "topic", "body", "platform", "content_hash", "status", "verified_evidence_count", "approved_at", "scheduled_at",
+            "published_at", "created_at", "updated_at",
+        )
+        lines = []
+        for key in keys:
+            if key not in item:
+                continue
+            value = item[key]
+            lines.append(f"{key} = {value}" if isinstance(value, int) else f"{key} = {json.dumps(str(value), ensure_ascii=False)}")
+        self._write_text(directory / "ticket.toml", "\n".join(lines) + "\n")
+
+    def _write_json(self, path: Path, value: dict) -> None:
+        self._write_text(path, json.dumps(value, ensure_ascii=False, indent=2) + "\n")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Manage locally approved X posts.")
-    parser.add_argument("--db", type=Path, default=Path(".codoop-autopost/autopost.db"))
+    parser.add_argument("--workspace", type=Path, default=Path.cwd(), help="Content-operations workspace (default: current directory).")
     commands = parser.add_subparsers(dest="command", required=True)
     create = commands.add_parser("draft")
     create.add_argument("topic")
     create.add_argument("body")
     evidence = commands.add_parser("evidence")
-    evidence.add_argument("draft_id")
+    evidence.add_argument("ticket_id")
     evidence.add_argument("claim")
     evidence.add_argument("url")
     evidence.add_argument("source_type")
     evidence.add_argument("excerpt")
     evidence.add_argument("--published-at")
     evidence.add_argument("--verified", action="store_true", help="Confirm this evidence was checked against the source.")
+    submit = commands.add_parser("submit", help="Move a reviewed ticket to pending human approval.")
+    submit.add_argument("ticket_id")
     approve = commands.add_parser("approve")
-    approve.add_argument("draft_id")
+    approve.add_argument("ticket_id")
     schedule = commands.add_parser("schedule")
-    schedule.add_argument("draft_id")
+    schedule.add_argument("ticket_id")
     schedule.add_argument("when", help="ISO-8601 timestamp with timezone")
     listing = commands.add_parser("list")
     listing.add_argument("--status", choices=sorted(STATUSES))
@@ -389,15 +414,18 @@ def main() -> int:
     due = commands.add_parser("publish-due", help="Publish due, approved posts only with --live.")
     due.add_argument("--live", action="store_true")
     args = parser.parse_args()
-    store = Store(args.db)
     if args.command == "draft":
-        result = store.create_draft(args.topic, args.body)
+        result = TicketStore(args.workspace).create_ticket(args.topic, args.body)
     elif args.command == "evidence":
-        result = store.add_evidence(args.draft_id, args.claim, args.url, args.source_type, args.published_at, args.excerpt, args.verified)
+        result = TicketStore(args.workspace).add_evidence(
+            args.ticket_id, args.claim, args.url, args.source_type, args.published_at, args.excerpt, args.verified
+        )
+    elif args.command == "submit":
+        result = TicketStore(args.workspace).submit(args.ticket_id)
     elif args.command == "approve":
-        result = store.approve(args.draft_id)
+        result = TicketStore(args.workspace).approve(args.ticket_id)
     elif args.command == "schedule":
-        result = store.schedule(args.draft_id, datetime.fromisoformat(args.when))
+        result = TicketStore(args.workspace).schedule(args.ticket_id, datetime.fromisoformat(args.when))
     elif args.command == "scrape":
         settings = Settings.load()
         api_key = settings.firecrawl_api_key
@@ -407,12 +435,13 @@ def main() -> int:
     elif args.command == "discover":
         result = discover(args.topic)
     elif args.command == "publish-due":
+        store = TicketStore(args.workspace)
         if not args.live:
             result = {"dry_run": True, "due": store.due()}
         else:
             result = store.publish_due(XPublisher.from_settings(Settings.load()).post)
     else:
-        result = store.list(args.status)
+        result = TicketStore(args.workspace).list(args.status)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

@@ -62,9 +62,6 @@ content-operations/
 │       └── publish/
 │           ├── schedule.toml
 │           └── receipt.json
-└── .codoop-autopost/
-    ├── autopost.db
-    └── research/
 ```
 
 `ticket.toml` 是一张工单的状态入口：
@@ -76,10 +73,10 @@ platform = "x"
 ```
 
 - `draft`：收集热点、核验来源和写作。
-- `pending`：最终稿已在 `review/final.md`，等待人工审核或定时发布。
+- `pending`：最终稿已在 `review/final.md`，等待人工审核或定时发布；`ticket.toml` 会记录批准和排程时间。
 - `done`：发布成功，发布信息保存在 `publish/receipt.json`。
 
-`.codoop-autopost/` 是主 Skill 的本地安全状态，用于避免重复发布；运营用户无需手动编辑它。
+工单目录是唯一的运营记录：不创建 `autopost.db` 或隐藏状态目录。发布时会在当前工单内短暂创建锁；进程异常中断而留下锁时，保留它供人工检查，避免意外重复发布。
 
 ## 首次使用
 
