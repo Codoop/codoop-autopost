@@ -332,6 +332,7 @@ class TicketStore:
         return self.get(ticket_id)
 
     def due(self, now: datetime | None = None) -> list[dict]:
+        self.require_standards()
         current = (now or datetime.now(UTC)).astimezone(UTC)
         due = []
         for item in self.list("pending"):

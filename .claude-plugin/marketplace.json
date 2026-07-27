@@ -60,6 +60,15 @@
       "homepage": "https://github.com/Codoop/codoop-autopost",
       "license": "MIT",
       "keywords": ["x", "twitter", "publishing"]
+    },
+    {
+      "name": "grilling",
+      "version": "0.1.0",
+      "source": "skills/grilling/",
+      "description": "Interview a user one decision at a time with recommended answers.",
+      "homepage": "https://github.com/Codoop/codoop-autopost",
+      "license": "MIT",
+      "keywords": ["interview", "planning", "decisions"]
     }
   ]
 }

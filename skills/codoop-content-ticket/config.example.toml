@@ -1,0 +1,11 @@
+# Copy to config.toml in the root of one content-operations workspace and keep it private.
+
+[firecrawl]
+api_key = ""
+api_url = "https://api.firecrawl.dev/v2"
+
+[x]
+consumer_key = ""
+consumer_secret = ""
+access_token = ""
+access_secret = ""

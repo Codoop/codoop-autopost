@@ -126,6 +126,12 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "codoop-autopost-init"):
             store.create_ticket("AI research", "A verified claim.")
 
+    def test_due_queue_requires_current_project_standards(self):
+        (self.workspace / "VOICE.md").unlink()
+
+        with self.assertRaisesRegex(ValueError, "codoop-autopost-init"):
+            self.store.due()
+
     def test_ticket_can_be_created_before_discovery_and_written_later(self):
         ticket = self.store.create_ticket("AI research")
 
@@ -246,6 +252,7 @@ class PluginSkillTests(unittest.TestCase):
         self.assertTrue((root / "codoop-content-ticket" / "SKILL.md").is_file())
         self.assertTrue((root / "grilling" / "SKILL.md").is_file())
         self.assertTrue(CONTENT_TICKET_SCRIPT.is_file())
+        self.assertTrue((root / "codoop-content-ticket" / "config.example.toml").is_file())
 
     def test_content_ticket_wrapper_uses_the_ticket_workflow(self):
         result = subprocess.run([sys.executable, str(CONTENT_TICKET_SCRIPT), "--help"], capture_output=True, text=True)
