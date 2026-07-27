@@ -6,12 +6,18 @@
 
 ## 安装
 
-克隆仓库后，运行一次安装脚本。用户只安装 `codoop-autopost`，不需要单独安装 last30days、Firecrawl、social-content、copy-editing 或 x-twitter Skill。
+克隆仓库后，运行一次安装脚本即可安装整个 Skill Pack：主工作流与每个依赖 Skill 都能独立调用。
 
 ```bash
 git clone https://github.com/Codoop/codoop-autopost.git
 cd codoop-autopost
 ./scripts/install-skill.sh --agent codex
+```
+
+只安装一个独立能力也可以，例如：
+
+```bash
+./scripts/install-skill.sh --agent codex --skill codoop-firecrawl
 ```
 
 Claude Code 使用：
@@ -20,7 +26,7 @@ Claude Code 使用：
 ./scripts/install-skill.sh --agent claude
 ```
 
-仓库同时提供 Codex、Claude Code 和 Agent Skills 市场清单，组织方式与 [codoop-flow](https://github.com/Codoop/codoop-flow) 一致。
+Skill Pack 包含：`codoop-autopost`、`codoop-last30days`、`codoop-firecrawl`、`codoop-social-content`、`codoop-copy-editing`、`codoop-x-twitter`。仓库同时提供 Codex、Claude Code 和 Agent Skills 市场清单，组织方式与 [codoop-flow](https://github.com/Codoop/codoop-flow) 一致。
 
 ## 首次使用
 

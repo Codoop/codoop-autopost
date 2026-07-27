@@ -4,7 +4,7 @@
 
 ## 目标
 
-发布一个自包含的 `codoop-autopost` Skill。用户只安装这一个 Skill 后即可执行“热点发现 → 一手来源核验 → 草稿 → 人工批准 → X 定时发布”。发行包不得声明、调用或要求安装 `last30days`、`social-content`、`copy-editing` 或 `x-twitter` Skill。
+发布一个可组合的 `codoop-autopost` Skill Pack。用户既可安装整包执行“热点发现 → 一手来源核验 → 草稿 → 人工批准 → X 定时发布”，也可单独安装和使用 `codoop-last30days`、`codoop-firecrawl`、`codoop-social-content`、`codoop-copy-editing` 或 `codoop-x-twitter`。
 
 用户仍需自行提供运行环境和账户凭据：Python、Firecrawl 服务凭据（或自托管地址）、X Developer OAuth 凭据，以及其所用 Agent/模型的凭据。
 
@@ -17,7 +17,7 @@
 | 写作与润色 | `draft`、`edit` | 将适合本项目的写作、语气和事实保护规则写进本 Skill；不在运行时调用外部 `social-content`、`copy-editing` Skill。 |
 | X 发布 | `publish` | 只保留 X 官方 API 的 OAuth 发帖能力。可审计地复用/改写 `x-twitter` 的 MIT 发布路径，但不暴露搜索、互动、关注、回复或浏览器自动化能力。 |
 
-上游代码或规则只可作为项目的内部实现：例如初始化后用户数据目录中的 `last30days/`、内部 Python 模块和本 Skill 的提示规则。Skill 的唯一公开入口是 `codoop-autopost`；用户也可以单独使用上游 Skill，但这不是本 Skill 的安装前提。
+主 Skill 只编排公开的子 Skill；它们也各自是完整的公开入口。`last30days` 的上游运行时仍初始化到用户数据目录，避免将供应商代码写入插件缓存。
 
 ## 不可绕过的安全门
 
@@ -34,7 +34,7 @@
 
 ## 最小可移植实现
 
-- 一个公开 Skill 入口：`skills/codoop-autopost/SKILL.md`，并由根目录的 Codex、Claude 和 Agent Skills 插件清单发布。
+- 六个公开 Skill 入口位于 `skills/`，并由根目录的 Codex、Claude 和 Agent Skills 插件清单分别发布。
 - 一个本地 SQLite 文件保存候选、证据、草稿、批准和发布记录。
 - 一个 CLI/Skill 命令用于列出待审核稿、显式批准、安排发布时间以及执行 `publish-due`。
 - 默认 dry-run；真实发布须同时满足已批准状态和显式 `--live` 开关。

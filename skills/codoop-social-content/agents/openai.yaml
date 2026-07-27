@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codoop Social Content"
+  short_description: "Draft evidence-grounded social posts."
+  default_prompt: "Draft an X post from this verified evidence in my voice."

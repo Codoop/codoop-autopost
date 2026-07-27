@@ -15,6 +15,36 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "codoop-last30days",
+      "source": {"source": "local", "path": "skills/codoop-last30days"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
+    },
+    {
+      "name": "codoop-firecrawl",
+      "source": {"source": "local", "path": "skills/codoop-firecrawl"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
+    },
+    {
+      "name": "codoop-social-content",
+      "source": {"source": "local", "path": "skills/codoop-social-content"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
+    },
+    {
+      "name": "codoop-copy-editing",
+      "source": {"source": "local", "path": "skills/codoop-copy-editing"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
+    },
+    {
+      "name": "codoop-x-twitter",
+      "source": {"source": "local", "path": "skills/codoop-x-twitter"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
     }
   ]
 }
