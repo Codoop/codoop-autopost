@@ -1,4 +1,0 @@
-interface:
-  display_name: "X Twitter"
-  short_description: "Publish approved X posts through the official API."
-  default_prompt: "Publish this explicitly approved X post through the official API."

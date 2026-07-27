@@ -1,4 +1,0 @@
-interface:
-  display_name: "Copy Editing"
-  short_description: "Edit copy without altering verified facts."
-  default_prompt: "Tighten this draft without changing facts, numbers, quotes, or sources."
