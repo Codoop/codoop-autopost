@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codoop Autopost"
+  short_description: "Research, verify, approve, and publish X posts safely."
+  default_prompt: "Use codoop-autopost to discover a topic, verify primary sources, and prepare an X post for my approval."
