@@ -1,0 +1,11 @@
+# Copy to ~/.config/codoop-autopost/config.toml and keep the real file private.
+
+[firecrawl]
+api_key = ""
+api_url = "https://api.firecrawl.dev/v2"
+
+[x]
+consumer_key = ""
+consumer_secret = ""
+access_token = ""
+access_secret = ""

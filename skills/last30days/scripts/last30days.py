@@ -14,7 +14,7 @@ VERSION = "v3.3.0"
 
 
 def ensure() -> Path:
-    script = ROOT / "scripts" / "last30days.py"
+    script = ROOT / "skills" / "last30days" / "scripts" / "last30days.py"
     if script.is_file():
         return script
     ROOT.parent.mkdir(parents=True, exist_ok=True)

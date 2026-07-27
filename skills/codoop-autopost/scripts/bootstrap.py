@@ -16,11 +16,15 @@ def vendor_dir(data_home: Path | None = None) -> Path:
     return home / "last30days"
 
 
+def vendor_script(data_home: Path | None = None) -> Path:
+    return vendor_dir(data_home) / "skills" / "last30days" / "scripts" / "last30days.py"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Initialize the bundled last30days runtime.")
     parser.parse_args()
     vendor = vendor_dir()
-    if (vendor / "scripts" / "last30days.py").is_file():
+    if vendor_script().is_file():
         print(f"last30days already available at {vendor}")
         return 0
     vendor.parent.mkdir(parents=True, exist_ok=True)

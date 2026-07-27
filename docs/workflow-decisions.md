@@ -12,7 +12,7 @@
 
 | 阶段 | codoop-autopost 内部组件 | 上游复用策略 |
 | --- | --- | --- |
-| 热点发现 | `discover` | 首次初始化时拉取并固定 `last30days` 的 MIT 运行时到用户数据目录 `~/.local/share/codoop-autopost/last30days`；也可指向用户已单独安装的副本。不要求用户额外安装该 Skill。 |
+| 热点发现 | `discover` | 首次发现时自动拉取并固定 `last30days` 的 MIT 运行时到用户数据目录 `~/.local/share/codoop-autopost/last30days`；不要求用户额外安装或初始化该 Skill。 |
 | 一手来源核验 | `verify` | 用一个小型 Firecrawl HTTP 客户端调用用户配置的 API 或兼容自托管端点；不复制或捆绑 Firecrawl 的 AGPL 源码。 |
 | 写作与润色 | `draft`、`edit` | 将适合本项目的写作、语气和事实保护规则写进本 Skill；不在运行时调用外部 `social-content`、`copy-editing` Skill。 |
 | X 发布 | `publish` | 只保留 X 官方 API 的 OAuth 发帖能力。可审计地复用/改写 `x-twitter` 的 MIT 发布路径，但不暴露搜索、互动、关注、回复或浏览器自动化能力。 |
@@ -35,9 +35,10 @@
 ## 最小可移植实现
 
 - 六个公开 Skill 入口位于 `skills/`，并由根目录的 Codex、Claude 和 Agent Skills 插件清单分别发布。
-- 一个本地 SQLite 文件保存候选、证据、草稿、批准和发布记录。
+- 一个本地 SQLite 文件保存证据、草稿、批准和发布记录；热点候选由 `last30days` 输出供人工筛选。
 - 一个 CLI/Skill 命令用于列出待审核稿、显式批准、安排发布时间以及执行 `publish-due`。
 - 默认 dry-run；真实发布须同时满足已批准状态和显式 `--live` 开关。
+- 用户凭据放在 `~/.config/codoop-autopost/config.toml`；环境变量可覆盖，真实凭据绝不写入仓库或 SQLite。
 - 定时器由用户机器的 cron/launchd 或部署环境触发 `publish-due`；Skill 不自行常驻或自行发布。
 
 ## 许可证与归属

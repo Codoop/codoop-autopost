@@ -122,7 +122,7 @@ class ExternalAdapterTests(unittest.TestCase):
             with patch.object(autopost.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
                 script = autopost.ensure_discovery_runtime()
 
-        self.assertEqual(script, Path(directory) / "last30days" / "scripts" / "last30days.py")
+        self.assertEqual(script, Path(directory) / "last30days" / "skills" / "last30days" / "scripts" / "last30days.py")
         self.assertEqual(run.call_args.args[0], [sys.executable, str(BOOTSTRAP)])
 
     def test_configuration_reads_file_and_allows_environment_override(self):
@@ -144,6 +144,12 @@ class ExternalAdapterTests(unittest.TestCase):
 
     def test_vendor_runtime_lives_outside_the_installed_skill(self):
         self.assertEqual(bootstrap.vendor_dir(Path("/tmp/codoop-data")), Path("/tmp/codoop-data/last30days"))
+
+    def test_vendor_script_uses_the_upstream_skill_directory(self):
+        self.assertEqual(
+            bootstrap.vendor_script(Path("/tmp/codoop-data")),
+            Path("/tmp/codoop-data/last30days/skills/last30days/scripts/last30days.py"),
+        )
 
 
 if __name__ == "__main__":

@@ -9,29 +9,28 @@ Run the evidence-first workflow. Never treat a trending discussion as a fact. Ne
 
 ## First use
 
-This orchestration Skill ships with independently usable sibling Skills: `last30days`, `firecrawl`, `social-content`, `copy-editing`, and `x-twitter`. Set `SKILLS_DIR` to the directory where the pack was installed, then initialize the discovery runtime once:
+This orchestration Skill includes the runtime it needs. `last30days`, `firecrawl`, `social-content`, `copy-editing`, and `x-twitter` remain independently usable sibling Skills, but none is a prerequisite. Set the main Skill directory once for the commands below:
 
 ```bash
-SKILLS_DIR="${CODEX_HOME:-$HOME/.codex}/skills"
-python3 "$SKILLS_DIR/last30days/scripts/last30days.py" --init
+AUTOPOST_DIR="${CODEX_HOME:-$HOME/.codex}/skills/codoop-autopost"
 ```
 
-`FIRECRAWL_API_KEY` is required only to inspect sources. `X_CONSUMER_KEY`, `X_CONSUMER_SECRET`, `X_ACCESS_TOKEN`, and `X_ACCESS_SECRET` are required only for live publication. Use `FIRECRAWL_API_URL` for a compatible self-hosted endpoint. Never write credentials to the database or a draft.
+Copy `$AUTOPOST_DIR/config.example.toml` to `~/.config/codoop-autopost/config.toml`, add Firecrawl and X credentials, then restrict it to the current user (`chmod 600`). Firecrawl is required only to inspect sources; X credentials are required only for live publication. Environment variables override the file, and `CODOOP_AUTOPOST_CONFIG` can select another config path. Never write credentials to the database or a draft.
 
 ## Workflow
 
 1. Discover candidate discussions:
 
    ```bash
-   python3 "$SKILLS_DIR/last30days/scripts/last30days.py" "TOPIC"
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" discover "TOPIC"
    ```
 
-   Score candidates for relevance, recency, engagement, and whether primary evidence is likely available. `last30days` is discovery-only.
+   The first discovery run initializes the private `last30days` runtime automatically. Score candidates for relevance, recency, engagement, and whether primary evidence is likely available. `last30days` is discovery-only.
 
 2. Find and inspect primary sources. Prefer official announcements, original reporting, papers, or the named person's original post. Read each candidate URL with Firecrawl:
 
    ```bash
-   python3 "$SKILLS_DIR/firecrawl/scripts/scrape.py" "URL"
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" scrape "URL"
    ```
 
    Exclude a claim if its source is secondary, unavailable, conflicting, or insufficient. Keep the claim, source URL, source type, publication date, and a short exact excerpt.
@@ -39,8 +38,8 @@ python3 "$SKILLS_DIR/last30days/scripts/last30days.py" --init
 3. Draft from verified evidence only. State the audience and the author's angle before writing. Clearly distinguish verified facts, attributed outside views, and the author's analysis. Keep X text to 280 characters. Create the local draft, then attach every claim it relies on:
 
    ```bash
-   python3 .agents/skills/codoop-autopost/scripts/autopost.py draft "TOPIC" "POST TEXT"
-   python3 .agents/skills/codoop-autopost/scripts/autopost.py evidence DRAFT_ID "CLAIM" "URL" "SOURCE TYPE" "EXCERPT" --published-at "YYYY-MM-DD"
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" draft "TOPIC" "POST TEXT"
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" evidence DRAFT_ID "CLAIM" "URL" "SOURCE TYPE" "EXCERPT" --published-at "YYYY-MM-DD" --verified
    ```
 
    Edit for clarity and the user's voice, but do not change a fact, number, quotation, or source. If an edit needs a factual change, re-verify it first.
@@ -48,14 +47,14 @@ python3 "$SKILLS_DIR/last30days/scripts/last30days.py" --init
 4. Ask for review. Do not call `approve` unless the user explicitly identifies the draft and says to approve it. Approval fails without saved verified evidence.
 
    ```bash
-   python3 .agents/skills/codoop-autopost/scripts/autopost.py approve DRAFT_ID
-   python3 .agents/skills/codoop-autopost/scripts/autopost.py schedule DRAFT_ID "2026-08-01T09:00:00-07:00"
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" approve DRAFT_ID
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" schedule DRAFT_ID "2026-08-01T09:00:00-07:00"
    ```
 
 5. Inspect the due queue before live publication:
 
    ```bash
-   python3 .agents/skills/codoop-autopost/scripts/autopost.py publish-due
+   python3 "$AUTOPOST_DIR/scripts/autopost.py" publish-due
    ```
 
    A scheduler may invoke `x-twitter` after an explicit user instruction. A successful publication records the X ID, URL, and timestamp. A failure retains the body and error as `failed`; it is not retried automatically.

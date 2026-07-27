@@ -162,7 +162,7 @@ def discovery_script() -> Path:
     root = Path(configured) if configured else Path(
         os.environ.get("CODOOP_AUTOPOST_HOME", Path.home() / ".local" / "share" / "codoop-autopost")
     ) / "last30days"
-    return root / "scripts" / "last30days.py"
+    return root / "skills" / "last30days" / "scripts" / "last30days.py"
 
 
 def ensure_discovery_runtime() -> Path:
