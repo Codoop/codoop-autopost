@@ -1,9 +1,9 @@
 ---
-name: codoop-social-content
+name: social-content
 description: Draft concise, evidence-grounded social content in a specified audience, angle, and voice. Use after facts have been verified to create X posts or thread drafts without inventing claims.
 ---
 
-# Codoop Social Content
+# Social Content
 
 Accept only an evidence pack. Before drafting, state the target audience, the author's angle, and the intended post format. Separate:
 

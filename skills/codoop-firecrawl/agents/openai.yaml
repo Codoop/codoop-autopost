@@ -1,4 +1,0 @@
-interface:
-  display_name: "Codoop Firecrawl"
-  short_description: "Read and record primary-source evidence."
-  default_prompt: "Use Codoop Firecrawl to inspect this source and extract verifiable claims."

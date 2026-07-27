@@ -33,7 +33,7 @@ install_to() {
 
 SKILLS=("$SKILL")
 if [[ "$SKILL" == "all" ]]; then
-  SKILLS=(codoop-autopost codoop-last30days codoop-firecrawl codoop-social-content codoop-copy-editing codoop-x-twitter)
+  SKILLS=(codoop-autopost last30days firecrawl social-content copy-editing x-twitter)
 fi
 
 if [[ "$AGENT" == "auto" || "$AGENT" == "codex" || "$AGENT" == "all" ]]; then

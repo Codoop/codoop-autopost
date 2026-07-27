@@ -4,7 +4,7 @@
 
 ## 目标
 
-发布一个可组合的 `codoop-autopost` Skill Pack。用户既可安装整包执行“热点发现 → 一手来源核验 → 草稿 → 人工批准 → X 定时发布”，也可单独安装和使用 `codoop-last30days`、`codoop-firecrawl`、`codoop-social-content`、`codoop-copy-editing` 或 `codoop-x-twitter`。
+发布一个可组合的 `codoop-autopost` Skill Pack。用户既可安装整包执行“热点发现 → 一手来源核验 → 草稿 → 人工批准 → X 定时发布”，也可单独安装和使用 `last30days`、`firecrawl`、`social-content`、`copy-editing` 或 `x-twitter`。
 
 用户仍需自行提供运行环境和账户凭据：Python、Firecrawl 服务凭据（或自托管地址）、X Developer OAuth 凭据，以及其所用 Agent/模型的凭据。
 

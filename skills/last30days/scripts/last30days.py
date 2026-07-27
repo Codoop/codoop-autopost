@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(os.environ.get("CODOOP_LAST30DAYS_DIR", Path.home() / ".local" / "share" / "codoop-last30days" / "last30days"))
+ROOT = Path(os.environ.get("CODOOP_LAST30DAYS_DIR", Path.home() / ".local" / "share" / "last30days" / "runtime"))
 REPOSITORY = "https://github.com/mvanhorn/last30days-skill.git"
 VERSION = "v3.3.0"
 

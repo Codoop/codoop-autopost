@@ -9,11 +9,11 @@ Run the evidence-first workflow. Never treat a trending discussion as a fact. Ne
 
 ## First use
 
-This orchestration Skill ships with independently usable sibling Skills: `codoop-last30days`, `codoop-firecrawl`, `codoop-social-content`, `codoop-copy-editing`, and `codoop-x-twitter`. Set `SKILLS_DIR` to the directory where the pack was installed, then initialize the discovery runtime once:
+This orchestration Skill ships with independently usable sibling Skills: `last30days`, `firecrawl`, `social-content`, `copy-editing`, and `x-twitter`. Set `SKILLS_DIR` to the directory where the pack was installed, then initialize the discovery runtime once:
 
 ```bash
 SKILLS_DIR="${CODEX_HOME:-$HOME/.codex}/skills"
-python3 "$SKILLS_DIR/codoop-last30days/scripts/last30days.py" --init
+python3 "$SKILLS_DIR/last30days/scripts/last30days.py" --init
 ```
 
 `FIRECRAWL_API_KEY` is required only to inspect sources. `X_CONSUMER_KEY`, `X_CONSUMER_SECRET`, `X_ACCESS_TOKEN`, and `X_ACCESS_SECRET` are required only for live publication. Use `FIRECRAWL_API_URL` for a compatible self-hosted endpoint. Never write credentials to the database or a draft.
@@ -23,7 +23,7 @@ python3 "$SKILLS_DIR/codoop-last30days/scripts/last30days.py" --init
 1. Discover candidate discussions:
 
    ```bash
-   python3 "$SKILLS_DIR/codoop-last30days/scripts/last30days.py" "TOPIC"
+   python3 "$SKILLS_DIR/last30days/scripts/last30days.py" "TOPIC"
    ```
 
    Score candidates for relevance, recency, engagement, and whether primary evidence is likely available. `last30days` is discovery-only.
@@ -31,7 +31,7 @@ python3 "$SKILLS_DIR/codoop-last30days/scripts/last30days.py" --init
 2. Find and inspect primary sources. Prefer official announcements, original reporting, papers, or the named person's original post. Read each candidate URL with Firecrawl:
 
    ```bash
-   python3 "$SKILLS_DIR/codoop-firecrawl/scripts/scrape.py" "URL"
+   python3 "$SKILLS_DIR/firecrawl/scripts/scrape.py" "URL"
    ```
 
    Exclude a claim if its source is secondary, unavailable, conflicting, or insufficient. Keep the claim, source URL, source type, publication date, and a short exact excerpt.
@@ -58,7 +58,7 @@ python3 "$SKILLS_DIR/codoop-last30days/scripts/last30days.py" --init
    python3 .agents/skills/codoop-autopost/scripts/autopost.py publish-due
    ```
 
-   A scheduler may invoke `codoop-x-twitter` after an explicit user instruction. A successful publication records the X ID, URL, and timestamp. A failure retains the body and error as `failed`; it is not retried automatically.
+   A scheduler may invoke `x-twitter` after an explicit user instruction. A successful publication records the X ID, URL, and timestamp. A failure retains the body and error as `failed`; it is not retried automatically.
 
 ## Non-negotiable rules
 

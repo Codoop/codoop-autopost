@@ -1,9 +1,9 @@
 ---
-name: codoop-firecrawl
+name: firecrawl
 description: Read source URLs through Firecrawl and extract evidence for claim verification. Use when verifying a primary source, recording a factual claim, or rejecting unverified content.
 ---
 
-# Codoop Firecrawl
+# Firecrawl
 
 Require `FIRECRAWL_API_KEY`. Read a URL as Markdown:
 

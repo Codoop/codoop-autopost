@@ -17,7 +17,7 @@ cd codoop-autopost
 只安装一个独立能力也可以，例如：
 
 ```bash
-./scripts/install-skill.sh --agent codex --skill codoop-firecrawl
+./scripts/install-skill.sh --agent codex --skill firecrawl
 ```
 
 Claude Code 使用：
@@ -26,7 +26,7 @@ Claude Code 使用：
 ./scripts/install-skill.sh --agent claude
 ```
 
-Skill Pack 包含：`codoop-autopost`、`codoop-last30days`、`codoop-firecrawl`、`codoop-social-content`、`codoop-copy-editing`、`codoop-x-twitter`。仓库同时提供 Codex、Claude Code 和 Agent Skills 市场清单，组织方式与 [codoop-flow](https://github.com/Codoop/codoop-flow) 一致。
+Skill Pack 包含：`codoop-autopost`、`last30days`、`firecrawl`、`social-content`、`copy-editing`、`x-twitter`。仓库同时提供 Codex、Claude Code 和 Agent Skills 市场清单，组织方式与 [codoop-flow](https://github.com/Codoop/codoop-flow) 一致。
 
 ## 首次使用
 

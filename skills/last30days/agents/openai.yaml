@@ -1,0 +1,4 @@
+interface:
+  display_name: "Last30Days"
+  short_description: "Discover recent discussion without treating it as fact."
+  default_prompt: "Research a topic with Last30Days and return candidate discussions."

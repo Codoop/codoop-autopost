@@ -1,0 +1,4 @@
+interface:
+  display_name: "Firecrawl"
+  short_description: "Read and record primary-source evidence."
+  default_prompt: "Use Firecrawl to inspect this source and extract verifiable claims."

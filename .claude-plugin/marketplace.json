@@ -17,45 +17,45 @@
       "keywords": ["content", "x", "research", "approval", "publishing"]
     },
     {
-      "name": "codoop-last30days",
+      "name": "last30days",
       "version": "0.1.0",
-      "source": "skills/codoop-last30days/",
+      "source": "skills/last30days/",
       "description": "Discover recent discussion candidates without treating them as verified facts.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
       "license": "MIT",
       "keywords": ["research", "trends", "discovery"]
     },
     {
-      "name": "codoop-firecrawl",
+      "name": "firecrawl",
       "version": "0.1.0",
-      "source": "skills/codoop-firecrawl/",
+      "source": "skills/firecrawl/",
       "description": "Read primary sources and extract evidence through Firecrawl.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
       "license": "MIT",
       "keywords": ["firecrawl", "verification", "sources"]
     },
     {
-      "name": "codoop-social-content",
+      "name": "social-content",
       "version": "0.1.0",
-      "source": "skills/codoop-social-content/",
+      "source": "skills/social-content/",
       "description": "Draft concise social content from verified evidence.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
       "license": "MIT",
       "keywords": ["social", "writing", "x"]
     },
     {
-      "name": "codoop-copy-editing",
+      "name": "copy-editing",
       "version": "0.1.0",
-      "source": "skills/codoop-copy-editing/",
+      "source": "skills/copy-editing/",
       "description": "Edit copy without changing verified facts or sources.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
       "license": "MIT",
       "keywords": ["editing", "copy", "facts"]
     },
     {
-      "name": "codoop-x-twitter",
+      "name": "x-twitter",
       "version": "0.1.0",
-      "source": "skills/codoop-x-twitter/",
+      "source": "skills/x-twitter/",
       "description": "Publish an explicitly approved single X post through the official API.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
       "license": "MIT",

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Codoop Last30Days"
-  short_description: "Discover recent discussion without treating it as fact."
-  default_prompt: "Research a topic with Codoop Last30Days and return candidate discussions."

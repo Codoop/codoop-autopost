@@ -1,9 +1,9 @@
 ---
-name: codoop-x-twitter
+name: x-twitter
 description: Publish an explicitly approved single X post through the official X API using the user's OAuth credentials. Use only for a user-approved post; never use for browser automation, replies, likes, follows, or direct messages.
 ---
 
-# Codoop X Publisher
+# X Twitter
 
 Require all four environment variables: `X_CONSUMER_KEY`, `X_CONSUMER_SECRET`, `X_ACCESS_TOKEN`, and `X_ACCESS_SECRET`.
 
