@@ -189,16 +189,18 @@ class TicketStore:
     """One auditable content-operation folder per post; no separate database."""
 
     def __init__(self, workspace: Path):
-        self.tickets = workspace / "tickets"
+        self.workspace = workspace
+        self.tickets = workspace / "content-tickets"
         self.tickets.mkdir(parents=True, exist_ok=True)
 
     def create_ticket(self, topic: str, body: str) -> dict:
+        self.require_standards()
         if not topic.strip() or not body.strip():
             raise ValueError("topic and body are required")
         if len(body.strip()) > 280:
             raise ValueError("X posts must be 280 characters or fewer")
         now = utc_now()
-        ticket_id = f"T-{datetime.now(UTC):%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:8]}"
+        ticket_id = f"C-{datetime.now(UTC):%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:8]}"
         directory = self.tickets / ticket_id
         directory.mkdir()
         for stage in ("discovery", "verification", "writing", "review", "publish"):
@@ -324,6 +326,7 @@ class TicketStore:
         return sorted(due, key=lambda item: item["scheduled_at"])
 
     def publish_due(self, publisher: Callable[[str], dict], now: datetime | None = None) -> list[dict]:
+        self.require_standards()
         completed = []
         for item in self.due(now):
             directory = self._directory(item["id"])
@@ -350,6 +353,7 @@ class TicketStore:
         return completed
 
     def _require_status(self, ticket_id: str, expected: str) -> dict:
+        self.require_standards()
         item = self.get(ticket_id)
         if item["status"] != expected:
             raise ValueError(f"ticket must be {expected}, not {item['status']}")
@@ -359,6 +363,11 @@ class TicketStore:
         if Path(ticket_id).name != ticket_id or ticket_id in {".", ".."}:
             raise ValueError("invalid ticket id")
         return self.tickets / ticket_id
+
+    def require_standards(self) -> None:
+        missing = [name for name in ("PROJECT.md", "VOICE.md") if not (self.workspace / name).is_file() or not (self.workspace / name).read_text().strip()]
+        if missing:
+            raise ValueError("PROJECT.md and VOICE.md must be confirmed first; run codoop-autopost-init")
 
     @staticmethod
     def _write_text(path: Path, content: str) -> None:

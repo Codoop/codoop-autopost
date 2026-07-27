@@ -23,7 +23,10 @@ BOOTSTRAP_SPEC.loader.exec_module(bootstrap)
 class WorkflowTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
-        self.store = autopost.TicketStore(Path(self.directory.name))
+        self.workspace = Path(self.directory.name)
+        (self.workspace / "PROJECT.md").write_text("# Project\n")
+        (self.workspace / "VOICE.md").write_text("# Voice\n")
+        self.store = autopost.TicketStore(self.workspace)
         self.draft = self.store.create_ticket("AI research", "A verified claim.")
 
     def tearDown(self):
@@ -35,9 +38,10 @@ class WorkflowTests(unittest.TestCase):
             self.store.approve(self.draft["id"])
 
     def test_ticket_keeps_all_stage_artifacts_in_its_folder(self):
-        ticket = Path(self.directory.name) / "tickets" / self.draft["id"]
+        ticket = self.workspace / "content-tickets" / self.draft["id"]
 
         self.assertEqual(self.draft["status"], "draft")
+        self.assertTrue(self.draft["id"].startswith("C-"))
         self.assertTrue((ticket / "ticket.toml").is_file())
         for path in ("discovery", "verification", "writing", "review", "publish"):
             self.assertTrue((ticket / path).is_dir())
@@ -72,7 +76,7 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertEqual([item["id"] for item in published], [self.draft["id"]])
         self.assertEqual(self.store.get(self.draft["id"])["status"], "done")
-        receipt = Path(self.directory.name) / "tickets" / self.draft["id"] / "publish" / "receipt.json"
+        receipt = self.workspace / "content-tickets" / self.draft["id"] / "publish" / "receipt.json"
         self.assertEqual(json.loads(receipt.read_text())["status"], "published")
         self.assertEqual(self.store.publish_due(lambda body: self.fail("must not publish twice")), [])
 
@@ -109,10 +113,17 @@ class WorkflowTests(unittest.TestCase):
         self.store.submit(self.draft["id"])
         self.store.approve(self.draft["id"])
         self.store.schedule(self.draft["id"], datetime.now(UTC) - timedelta(seconds=1))
-        lock = Path(self.directory.name) / "tickets" / self.draft["id"] / "publish" / "publish.lock"
+        lock = self.workspace / "content-tickets" / self.draft["id"] / "publish" / "publish.lock"
         lock.write_text("another publisher")
 
         self.assertEqual(self.store.publish_due(lambda body: self.fail("must not publish while locked")), [])
+
+    def test_creating_a_ticket_requires_confirmed_project_standards(self):
+        workspace = Path(self.directory.name) / "missing-standards"
+        store = autopost.TicketStore(workspace)
+
+        with self.assertRaisesRegex(ValueError, "codoop-autopost-init"):
+            store.create_ticket("AI research", "A verified claim.")
 
 
 class ExternalAdapterTests(unittest.TestCase):
