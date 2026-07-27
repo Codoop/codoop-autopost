@@ -10,8 +10,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-SCRIPT = Path(__file__).parents[1] / "skills/codoop-autopost/scripts/autopost.py"
-BOOTSTRAP = Path(__file__).parents[1] / "skills/codoop-autopost/scripts/bootstrap.py"
+SCRIPT = Path(__file__).parents[1] / "skills/_shared/autopost.py"
+BOOTSTRAP = Path(__file__).parents[1] / "skills/_shared/bootstrap.py"
 CONTENT_TICKET_SCRIPT = Path(__file__).parents[1] / "skills/codoop-content-ticket/scripts/content_ticket.py"
 SPEC = importlib.util.spec_from_file_location("autopost", SCRIPT)
 autopost = importlib.util.module_from_spec(SPEC)

@@ -5,4 +5,4 @@ from pathlib import Path
 import runpy
 
 
-runpy.run_path(Path(__file__).parents[2] / "codoop-autopost" / "scripts" / "autopost.py", run_name="__main__")
+runpy.run_path(Path(__file__).parents[2] / "_shared" / "autopost.py", run_name="__main__")
