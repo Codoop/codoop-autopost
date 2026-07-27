@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -32,9 +33,24 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "verified evidence"):
             self.store.approve(self.draft["id"])
 
+    def test_draft_rejects_text_over_x_limit(self):
+        with self.assertRaisesRegex(ValueError, "280"):
+            self.store.create_draft("AI research", "x" * 281)
+
+    def test_evidence_requires_publication_date_and_explicit_verification(self):
+        with self.assertRaisesRegex(ValueError, "publication date"):
+            self.store.add_evidence(
+                self.draft["id"], "A claim", "https://example.com/news", "official announcement", None, "Original text", True
+            )
+        self.store.add_evidence(
+            self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text", False
+        )
+        with self.assertRaisesRegex(ValueError, "verified evidence"):
+            self.store.approve(self.draft["id"])
+
     def test_approved_draft_can_be_scheduled_and_published_once(self):
         self.store.add_evidence(
-            self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text"
+            self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text", True
         )
         self.store.approve(self.draft["id"])
         self.store.schedule(self.draft["id"], datetime.now(UTC) - timedelta(seconds=1))
@@ -47,7 +63,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_failed_publish_keeps_draft_and_error(self):
         self.store.add_evidence(
-            self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text"
+            self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text", True
         )
         self.store.approve(self.draft["id"])
         self.store.schedule(self.draft["id"], datetime.now(UTC) - timedelta(seconds=1))
@@ -61,7 +77,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_due_queue_excludes_future_posts(self):
         self.store.add_evidence(
-            self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text"
+            self.draft["id"], "A claim", "https://example.com/news", "official announcement", "2026-07-26", "Original text", True
         )
         self.store.approve(self.draft["id"])
         self.store.schedule(self.draft["id"], datetime.now(UTC) + timedelta(days=1))
@@ -100,6 +116,25 @@ class ExternalAdapterTests(unittest.TestCase):
         command = autopost.last30days_argv("AI agents", Path("/tmp/last30days.py"))
 
         self.assertEqual(command[-4:], ["AI agents", "--emit=json", "--save-dir", ".codoop-autopost/research"])
+
+    def test_discovery_bootstraps_its_own_runtime(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CODOOP_AUTOPOST_HOME": directory}):
+            with patch.object(autopost.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
+                script = autopost.ensure_discovery_runtime()
+
+        self.assertEqual(script, Path(directory) / "last30days" / "scripts" / "last30days.py")
+        self.assertEqual(run.call_args.args[0], [sys.executable, str(BOOTSTRAP)])
+
+    def test_configuration_reads_file_and_allows_environment_override(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.toml"
+            path.write_text('[firecrawl]\napi_key = "file-key"\napi_url = "https://firecrawl.example/v2"\n\n[x]\nconsumer_key = "consumer"\nconsumer_secret = "secret"\naccess_token = "token"\naccess_secret = "access-secret"\n')
+            with patch.dict(os.environ, {"CODOOP_AUTOPOST_CONFIG": str(path), "FIRECRAWL_API_KEY": "environment-key"}):
+                settings = autopost.Settings.load()
+
+        self.assertEqual(settings.firecrawl_api_key, "environment-key")
+        self.assertEqual(settings.firecrawl_api_url, "https://firecrawl.example/v2")
+        self.assertEqual(settings.x_credentials, ("consumer", "secret", "token", "access-secret"))
 
     def test_bootstrap_help_does_not_download_a_vendor(self):
         result = subprocess.run([sys.executable, str(BOOTSTRAP), "--help"], capture_output=True, text=True)

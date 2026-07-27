@@ -13,8 +13,9 @@ import secrets
 import sqlite3
 import subprocess
 import sys
+import tomllib
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Callable
 from urllib import parse, request
@@ -25,6 +26,56 @@ STATUSES = {"drafted", "approved", "scheduled", "publishing", "published", "fail
 
 def utc_now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+class Settings:
+    def __init__(
+        self,
+        firecrawl_api_key: str,
+        firecrawl_api_url: str,
+        x_consumer_key: str,
+        x_consumer_secret: str,
+        x_access_token: str,
+        x_access_secret: str,
+    ):
+        self.firecrawl_api_key = firecrawl_api_key
+        self.firecrawl_api_url = firecrawl_api_url
+        self.x_consumer_key = x_consumer_key
+        self.x_consumer_secret = x_consumer_secret
+        self.x_access_token = x_access_token
+        self.x_access_secret = x_access_secret
+
+    @property
+    def x_credentials(self) -> tuple[str, str, str, str]:
+        return self.x_consumer_key, self.x_consumer_secret, self.x_access_token, self.x_access_secret
+
+    @classmethod
+    def load(cls, path: Path | None = None) -> "Settings":
+        configured_path = os.environ.get("CODOOP_AUTOPOST_CONFIG")
+        config_path = path or (Path(configured_path) if configured_path else Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "codoop-autopost" / "config.toml")
+        if config_path.is_file():
+            with config_path.open("rb") as file:
+                config = tomllib.load(file)
+        else:
+            config = {}
+
+        def value(section: str, key: str, environment: str, default: str = "") -> str:
+            group = config.get(section, {})
+            if not isinstance(group, dict):
+                raise RuntimeError(f"invalid [{section}] configuration")
+            configured = os.environ.get(environment) or group.get(key, default)
+            if not isinstance(configured, str):
+                raise RuntimeError(f"{section}.{key} must be a string")
+            return configured
+
+        return cls(
+            value("firecrawl", "api_key", "FIRECRAWL_API_KEY"),
+            value("firecrawl", "api_url", "FIRECRAWL_API_URL", "https://api.firecrawl.dev/v2"),
+            value("x", "consumer_key", "X_CONSUMER_KEY"),
+            value("x", "consumer_secret", "X_CONSUMER_SECRET"),
+            value("x", "access_token", "X_ACCESS_TOKEN"),
+            value("x", "access_secret", "X_ACCESS_SECRET"),
+        )
 
 
 class Firecrawl:
@@ -62,12 +113,10 @@ class XPublisher:
         self.access_secret = access_secret
 
     @classmethod
-    def from_env(cls) -> "XPublisher":
-        keys = ("X_CONSUMER_KEY", "X_CONSUMER_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET")
-        values = [os.environ.get(key, "") for key in keys]
-        if not all(values):
+    def from_settings(cls, settings: Settings) -> "XPublisher":
+        if not all(settings.x_credentials):
             raise RuntimeError("X_CONSUMER_KEY, X_CONSUMER_SECRET, X_ACCESS_TOKEN, and X_ACCESS_SECRET are required")
-        return cls(*values)
+        return cls(*settings.x_credentials)
 
     def post(self, body: str) -> dict:
         if not body.strip():
@@ -108,14 +157,26 @@ def last30days_argv(topic: str, script: Path) -> list[str]:
     return [sys.executable, str(script), topic, "--emit=json", "--save-dir", ".codoop-autopost/research"]
 
 
-def discover(topic: str) -> dict:
+def discovery_script() -> Path:
     configured = os.environ.get("CODOOP_LAST30DAYS_DIR")
     root = Path(configured) if configured else Path(
         os.environ.get("CODOOP_AUTOPOST_HOME", Path.home() / ".local" / "share" / "codoop-autopost")
     ) / "last30days"
-    script = root / "scripts" / "last30days.py"
-    if not script.is_file():
-        raise RuntimeError("last30days is not initialized; run scripts/bootstrap.py or set CODOOP_LAST30DAYS_DIR")
+    return root / "scripts" / "last30days.py"
+
+
+def ensure_discovery_runtime() -> Path:
+    script = discovery_script()
+    if script.is_file():
+        return script
+    if os.environ.get("CODOOP_LAST30DAYS_DIR"):
+        raise RuntimeError("CODOOP_LAST30DAYS_DIR must point to an initialized last30days runtime")
+    subprocess.run([sys.executable, str(Path(__file__).with_name("bootstrap.py"))], check=True, timeout=300)
+    return script
+
+
+def discover(topic: str) -> dict:
+    script = ensure_discovery_runtime()
     result = subprocess.run(last30days_argv(topic, script), capture_output=True, text=True, check=False, timeout=300)
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or "last30days failed")
@@ -154,7 +215,7 @@ class Store:
                     source_type TEXT NOT NULL,
                     published_at TEXT,
                     excerpt TEXT NOT NULL,
-                    verified INTEGER NOT NULL DEFAULT 1,
+                    verified INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL
                 );
                 """
@@ -168,6 +229,8 @@ class Store:
     def create_draft(self, topic: str, body: str) -> dict:
         if not topic.strip() or not body.strip():
             raise ValueError("topic and body are required")
+        if len(body.strip()) > 280:
+            raise ValueError("X posts must be 280 characters or fewer")
         now = utc_now()
         item = {
             "id": str(uuid.uuid4()),
@@ -203,11 +266,17 @@ class Store:
             return [dict(row) for row in connection.execute(f"{query} ORDER BY created_at DESC", values)]
 
     def add_evidence(
-        self, draft_id: str, claim: str, url: str, source_type: str, published_at: str | None, excerpt: str
+        self, draft_id: str, claim: str, url: str, source_type: str, published_at: str | None, excerpt: str, verified: bool
     ) -> dict:
         self._require_status(draft_id, "drafted")
         if not all(value.strip() for value in (claim, url, source_type, excerpt)):
             raise ValueError("claim, url, source type, and excerpt are required")
+        if not published_at or not published_at.strip():
+            raise ValueError("publication date is required")
+        try:
+            date.fromisoformat(published_at)
+        except ValueError as error:
+            raise ValueError("publication date must use YYYY-MM-DD") from error
         item = {
             "id": str(uuid.uuid4()),
             "draft_id": draft_id,
@@ -216,12 +285,13 @@ class Store:
             "source_type": source_type.strip(),
             "published_at": published_at,
             "excerpt": excerpt.strip(),
+            "verified": int(verified),
             "created_at": utc_now(),
         }
         with self._connect() as connection:
             connection.execute(
-                "INSERT INTO evidence (id, draft_id, claim, url, source_type, published_at, excerpt, created_at) "
-                "VALUES (:id, :draft_id, :claim, :url, :source_type, :published_at, :excerpt, :created_at)",
+                "INSERT INTO evidence (id, draft_id, claim, url, source_type, published_at, excerpt, verified, created_at) "
+                "VALUES (:id, :draft_id, :claim, :url, :source_type, :published_at, :excerpt, :verified, :created_at)",
                 item,
             )
         return item
@@ -304,6 +374,7 @@ def main() -> int:
     evidence.add_argument("source_type")
     evidence.add_argument("excerpt")
     evidence.add_argument("--published-at")
+    evidence.add_argument("--verified", action="store_true", help="Confirm this evidence was checked against the source.")
     approve = commands.add_parser("approve")
     approve.add_argument("draft_id")
     schedule = commands.add_parser("schedule")
@@ -322,23 +393,24 @@ def main() -> int:
     if args.command == "draft":
         result = store.create_draft(args.topic, args.body)
     elif args.command == "evidence":
-        result = store.add_evidence(args.draft_id, args.claim, args.url, args.source_type, args.published_at, args.excerpt)
+        result = store.add_evidence(args.draft_id, args.claim, args.url, args.source_type, args.published_at, args.excerpt, args.verified)
     elif args.command == "approve":
         result = store.approve(args.draft_id)
     elif args.command == "schedule":
         result = store.schedule(args.draft_id, datetime.fromisoformat(args.when))
     elif args.command == "scrape":
-        api_key = os.environ.get("FIRECRAWL_API_KEY", "")
+        settings = Settings.load()
+        api_key = settings.firecrawl_api_key
         if not api_key:
             raise RuntimeError("FIRECRAWL_API_KEY is required")
-        result = {"url": args.url, "markdown": Firecrawl(os.environ.get("FIRECRAWL_API_URL", "https://api.firecrawl.dev/v2"), api_key).scrape(args.url)}
+        result = {"url": args.url, "markdown": Firecrawl(settings.firecrawl_api_url, api_key).scrape(args.url)}
     elif args.command == "discover":
         result = discover(args.topic)
     elif args.command == "publish-due":
         if not args.live:
             result = {"dry_run": True, "due": store.due()}
         else:
-            result = store.publish_due(XPublisher.from_env().post)
+            result = store.publish_due(XPublisher.from_settings(Settings.load()).post)
     else:
         result = store.list(args.status)
     print(json.dumps(result, ensure_ascii=False, indent=2))
