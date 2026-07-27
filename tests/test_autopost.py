@@ -125,6 +125,37 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "codoop-autopost-init"):
             store.create_ticket("AI research", "A verified claim.")
 
+    def test_ticket_can_be_created_before_discovery_and_written_later(self):
+        ticket = self.store.create_ticket("AI research")
+
+        self.assertEqual(ticket["body"], "")
+        self.assertEqual((self.workspace / "content-tickets" / ticket["id"] / "discovery" / "raw.json").read_text(), "{}\n")
+        written = self.store.write_draft(ticket["id"], "A verified claim.")
+
+        self.assertEqual(written["body"], "A verified claim.")
+        self.assertEqual(
+            (self.workspace / "content-tickets" / ticket["id"] / "review" / "final.md").read_text(),
+            "A verified claim.\n",
+        )
+
+    def test_cli_creates_an_empty_content_ticket_before_writing(self):
+        created = subprocess.run(
+            [sys.executable, str(SCRIPT), "--workspace", str(self.workspace), "create", "AI research"],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+        ticket = json.loads(created.stdout)
+        written = subprocess.run(
+            [sys.executable, str(SCRIPT), "--workspace", str(self.workspace), "write", ticket["id"], "A verified claim."],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+
+        self.assertEqual(ticket["body"], "")
+        self.assertEqual(json.loads(written.stdout)["body"], "A verified claim.")
+
 
 class ExternalAdapterTests(unittest.TestCase):
     def test_firecrawl_scrape_sends_bearer_token_and_returns_markdown(self):

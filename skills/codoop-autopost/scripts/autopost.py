@@ -193,11 +193,12 @@ class TicketStore:
         self.tickets = workspace / "content-tickets"
         self.tickets.mkdir(parents=True, exist_ok=True)
 
-    def create_ticket(self, topic: str, body: str) -> dict:
+    def create_ticket(self, topic: str, body: str = "") -> dict:
         self.require_standards()
-        if not topic.strip() or not body.strip():
-            raise ValueError("topic and body are required")
-        if len(body.strip()) > 280:
+        if not topic.strip():
+            raise ValueError("topic is required")
+        body = body.strip()
+        if len(body) > 280:
             raise ValueError("X posts must be 280 characters or fewer")
         now = utc_now()
         ticket_id = f"C-{datetime.now(UTC):%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:8]}"
@@ -206,11 +207,12 @@ class TicketStore:
         for stage in ("discovery", "verification", "writing", "review", "publish"):
             (directory / stage).mkdir()
         (directory / "verification" / "source-snapshots").mkdir()
-        self._write_text(directory / "writing" / "drafts.md", f"{body.strip()}\n")
-        self._write_text(directory / "writing" / "edited.md", f"{body.strip()}\n")
+        self._write_text(directory / "writing" / "drafts.md", f"{body}\n")
+        self._write_text(directory / "writing" / "edited.md", f"{body}\n")
         self._write_text(directory / "writing" / "brief.md", f"# Brief\n\nTopic: {topic.strip()}\n")
-        self._write_text(directory / "review" / "final.md", f"{body.strip()}\n")
+        self._write_text(directory / "review" / "final.md", f"{body}\n")
         self._write_text(directory / "review" / "approval.md", "")
+        self._write_text(directory / "discovery" / "raw.json", "{}\n")
         self._write_text(directory / "discovery" / "candidates.md", "# Candidates\n")
         self._write_text(directory / "discovery" / "selection.md", "# Selection\n")
         self._write_text(directory / "verification" / "evidence.md", "# Evidence\n")
@@ -218,14 +220,30 @@ class TicketStore:
         item = {
             "id": ticket_id,
             "topic": topic.strip(),
-            "body": body.strip(),
+            "body": body,
             "platform": "x",
-            "content_hash": hashlib.sha256(body.strip().encode()).hexdigest(),
+            "content_hash": hashlib.sha256(body.encode()).hexdigest(),
             "status": "draft",
             "verified_evidence_count": 0,
             "created_at": now,
             "updated_at": now,
         }
+        self._write_ticket(directory, item)
+        return self.get(ticket_id)
+
+    def write_draft(self, ticket_id: str, body: str) -> dict:
+        item = self._require_status(ticket_id, "draft")
+        body = body.strip()
+        if not body:
+            raise ValueError("post body is required")
+        if len(body) > 280:
+            raise ValueError("X posts must be 280 characters or fewer")
+        directory = self._directory(ticket_id)
+        for path in ("writing/drafts.md", "writing/edited.md", "review/final.md"):
+            self._write_text(directory / path, f"{body}\n")
+        item["body"] = body
+        item["content_hash"] = hashlib.sha256(body.encode()).hexdigest()
+        item["updated_at"] = utc_now()
         self._write_ticket(directory, item)
         return self.get(ticket_id)
 
@@ -396,9 +414,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Manage locally approved X posts.")
     parser.add_argument("--workspace", type=Path, default=Path.cwd(), help="Content-operations workspace (default: current directory).")
     commands = parser.add_subparsers(dest="command", required=True)
+    create = commands.add_parser("create", help="Create an empty content ticket before discovery.")
+    create.add_argument("topic")
     create = commands.add_parser("draft")
     create.add_argument("topic")
     create.add_argument("body")
+    write = commands.add_parser("write", help="Write the current draft and final review text for a content ticket.")
+    write.add_argument("ticket_id")
+    write.add_argument("body")
     evidence = commands.add_parser("evidence")
     evidence.add_argument("ticket_id")
     evidence.add_argument("claim")
@@ -423,8 +446,12 @@ def main() -> int:
     due = commands.add_parser("publish-due", help="Publish due, approved posts only with --live.")
     due.add_argument("--live", action="store_true")
     args = parser.parse_args()
-    if args.command == "draft":
+    if args.command == "create":
+        result = TicketStore(args.workspace).create_ticket(args.topic)
+    elif args.command == "draft":
         result = TicketStore(args.workspace).create_ticket(args.topic, args.body)
+    elif args.command == "write":
+        result = TicketStore(args.workspace).write_draft(args.ticket_id, args.body)
     elif args.command == "evidence":
         result = TicketStore(args.workspace).add_evidence(
             args.ticket_id, args.claim, args.url, args.source_type, args.published_at, args.excerpt, args.verified
