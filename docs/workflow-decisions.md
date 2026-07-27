@@ -12,12 +12,12 @@
 
 | 阶段 | codoop-autopost 内部组件 | 上游复用策略 |
 | --- | --- | --- |
-| 热点发现 | `discover` | 打包并固定 `last30days` 的 MIT 源码/运行时，作为内部供应商代码；不要求用户单独安装 Skill。 |
+| 热点发现 | `discover` | 首次初始化时拉取并固定 `last30days` 的 MIT 运行时到本 Skill 的私有 vendor 目录；也可指向用户已单独安装的副本。不要求用户额外安装该 Skill。 |
 | 一手来源核验 | `verify` | 用一个小型 Firecrawl HTTP 客户端调用用户配置的 API 或兼容自托管端点；不复制或捆绑 Firecrawl 的 AGPL 源码。 |
 | 写作与润色 | `draft`、`edit` | 将适合本项目的写作、语气和事实保护规则写进本 Skill；不在运行时调用外部 `social-content`、`copy-editing` Skill。 |
 | X 发布 | `publish` | 只保留 X 官方 API 的 OAuth 发帖能力。可审计地复用/改写 `x-twitter` 的 MIT 发布路径，但不暴露搜索、互动、关注、回复或浏览器自动化能力。 |
 
-上游代码或规则只可作为项目的内部实现：例如 `vendor/last30days/`、内部 Python 模块和本 Skill 的提示规则。Skill 的唯一公开入口是 `codoop-autopost`，内部组件不注册为独立 Skill，也不以运行时依赖的形式下载。
+上游代码或规则只可作为项目的内部实现：例如初始化后存在的 `vendor/last30days/`、内部 Python 模块和本 Skill 的提示规则。Skill 的唯一公开入口是 `codoop-autopost`；用户也可以单独使用上游 Skill，但这不是本 Skill 的安装前提。
 
 ## 不可绕过的安全门
 

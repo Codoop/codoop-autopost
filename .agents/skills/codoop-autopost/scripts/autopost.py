@@ -4,13 +4,20 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
+import hmac
 import json
+import os
+import secrets
 import sqlite3
+import subprocess
+import sys
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Callable
+from urllib import parse, request
 
 
 STATUSES = {"drafted", "approved", "scheduled", "publishing", "published", "failed"}
@@ -18,6 +25,102 @@ STATUSES = {"drafted", "approved", "scheduled", "publishing", "published", "fail
 
 def utc_now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+class Firecrawl:
+    def __init__(self, base_url: str, api_key: str):
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+
+    def scrape(self, url: str) -> str:
+        payload = json.dumps({"url": url, "formats": ["markdown"]}).encode()
+        response = self._post("/scrape", payload)
+        markdown = response.get("data", {}).get("markdown")
+        if not isinstance(markdown, str) or not markdown.strip():
+            raise RuntimeError("Firecrawl returned no markdown")
+        return markdown
+
+    def _post(self, path: str, payload: bytes) -> dict:
+        req = request.Request(
+            f"{self.base_url}{path}", data=payload,
+            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}, method="POST",
+        )
+        with request.urlopen(req, timeout=30) as response:
+            body = json.loads(response.read())
+        if not body.get("success", True):
+            raise RuntimeError(body.get("error") or "Firecrawl request failed")
+        return body
+
+
+class XPublisher:
+    endpoint = "https://api.x.com/2/tweets"
+
+    def __init__(self, consumer_key: str, consumer_secret: str, access_token: str, access_secret: str):
+        self.consumer_key = consumer_key
+        self.consumer_secret = consumer_secret
+        self.access_token = access_token
+        self.access_secret = access_secret
+
+    @classmethod
+    def from_env(cls) -> "XPublisher":
+        keys = ("X_CONSUMER_KEY", "X_CONSUMER_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET")
+        values = [os.environ.get(key, "") for key in keys]
+        if not all(values):
+            raise RuntimeError("X_CONSUMER_KEY, X_CONSUMER_SECRET, X_ACCESS_TOKEN, and X_ACCESS_SECRET are required")
+        return cls(*values)
+
+    def post(self, body: str) -> dict:
+        if not body.strip():
+            raise ValueError("post body is required")
+        if len(body) > 280:
+            raise ValueError("X posts must be 280 characters or fewer")
+        payload = json.dumps({"text": body}).encode()
+        oauth = {
+            "oauth_consumer_key": self.consumer_key,
+            "oauth_nonce": secrets.token_hex(16),
+            "oauth_signature_method": "HMAC-SHA1",
+            "oauth_timestamp": str(int(datetime.now(UTC).timestamp())),
+            "oauth_token": self.access_token,
+            "oauth_version": "1.0",
+        }
+        encoded = "&".join(
+            f"{parse.quote(key, safe='~')}={parse.quote(value, safe='~')}" for key, value in sorted(oauth.items())
+        )
+        base = "&".join(("POST", parse.quote(self.endpoint, safe="~"), parse.quote(encoded, safe="~")))
+        key = f"{parse.quote(self.consumer_secret, safe='~')}&{parse.quote(self.access_secret, safe='~')}"
+        oauth["oauth_signature"] = base64.b64encode(hmac.new(key.encode(), base.encode(), hashlib.sha1).digest()).decode()
+        authorization = "OAuth " + ", ".join(
+            f'{parse.quote(key, safe="~")}="{parse.quote(value, safe="~")}"' for key, value in sorted(oauth.items())
+        )
+        req = request.Request(
+            self.endpoint, data=payload,
+            headers={"Authorization": authorization, "Content-Type": "application/json"}, method="POST",
+        )
+        with request.urlopen(req, timeout=30) as response:
+            data = json.loads(response.read()).get("data", {})
+        post_id = data.get("id")
+        if not post_id:
+            raise RuntimeError("X returned no post id")
+        return {"id": post_id, "url": f"https://x.com/i/web/status/{post_id}"}
+
+
+def last30days_argv(topic: str, script: Path) -> list[str]:
+    return [sys.executable, str(script), topic, "--emit=json", "--save-dir", ".codoop-autopost/research"]
+
+
+def discover(topic: str) -> dict:
+    configured = os.environ.get("CODOOP_LAST30DAYS_DIR")
+    root = Path(configured) if configured else Path(__file__).parents[1] / "vendor" / "last30days"
+    script = root / "scripts" / "last30days.py"
+    if not script.is_file():
+        raise RuntimeError("last30days is not initialized; run scripts/bootstrap.py or set CODOOP_LAST30DAYS_DIR")
+    result = subprocess.run(last30days_argv(topic, script), capture_output=True, text=True, check=False, timeout=300)
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or "last30days failed")
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"last30days did not return JSON: {error}") from error
 
 
 class Store:
@@ -143,12 +246,15 @@ class Store:
             )
         return self.get(draft_id)
 
-    def publish_due(self, publisher: Callable[[str], dict], now: datetime | None = None) -> list[dict]:
-        now = (now or datetime.now(UTC)).astimezone(UTC).isoformat()
+    def due(self, now: datetime | None = None) -> list[dict]:
+        now_text = (now or datetime.now(UTC)).astimezone(UTC).isoformat()
         with self._connect() as connection:
-            due = [dict(row) for row in connection.execute(
-                "SELECT * FROM drafts WHERE status = 'scheduled' AND scheduled_at <= ? ORDER BY scheduled_at", (now,)
+            return [dict(row) for row in connection.execute(
+                "SELECT * FROM drafts WHERE status = 'scheduled' AND scheduled_at <= ? ORDER BY scheduled_at", (now_text,)
             )]
+
+    def publish_due(self, publisher: Callable[[str], dict], now: datetime | None = None) -> list[dict]:
+        due = self.due(now)
         completed = []
         for item in due:
             with self._connect() as connection:
@@ -203,6 +309,12 @@ def main() -> int:
     schedule.add_argument("when", help="ISO-8601 timestamp with timezone")
     listing = commands.add_parser("list")
     listing.add_argument("--status", choices=sorted(STATUSES))
+    scrape = commands.add_parser("scrape", help="Read a candidate primary source through Firecrawl.")
+    scrape.add_argument("url")
+    discover_command = commands.add_parser("discover", help="Find recent discussion candidates with bundled last30days.")
+    discover_command.add_argument("topic")
+    due = commands.add_parser("publish-due", help="Publish due, approved posts only with --live.")
+    due.add_argument("--live", action="store_true")
     args = parser.parse_args()
     store = Store(args.db)
     if args.command == "draft":
@@ -213,6 +325,18 @@ def main() -> int:
         result = store.approve(args.draft_id)
     elif args.command == "schedule":
         result = store.schedule(args.draft_id, datetime.fromisoformat(args.when))
+    elif args.command == "scrape":
+        api_key = os.environ.get("FIRECRAWL_API_KEY", "")
+        if not api_key:
+            raise RuntimeError("FIRECRAWL_API_KEY is required")
+        result = {"url": args.url, "markdown": Firecrawl(os.environ.get("FIRECRAWL_API_URL", "https://api.firecrawl.dev/v2"), api_key).scrape(args.url)}
+    elif args.command == "discover":
+        result = discover(args.topic)
+    elif args.command == "publish-due":
+        if not args.live:
+            result = {"dry_run": True, "due": store.due()}
+        else:
+            result = store.publish_due(XPublisher.from_env().post)
     else:
         result = store.list(args.status)
     print(json.dumps(result, ensure_ascii=False, indent=2))

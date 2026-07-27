@@ -1,85 +1,67 @@
 ---
 name: codoop-autopost
-description: [TODO: Complete and informative explanation of what the skill does and when to use it. Include WHEN to use this skill - specific scenarios, file types, or tasks that trigger it.]
+description: Discover timely discussion, verify primary sources, draft in the user's voice, require explicit human approval, and safely schedule a single X post. Use when creating or operating a fact-checked social-content workflow, reviewing an X draft for publication, or publishing an explicitly approved scheduled X post.
 ---
 
 # Codoop Autopost
 
-## Overview
+Run the evidence-first workflow. Never treat a trending discussion as a fact. Never approve or publish without the user's explicit instruction.
 
-[TODO: 1-2 sentences explaining what this skill enables]
+## First use
 
-## Structuring This Skill
+Initialize the private `last30days` runtime once. This is the only setup command; users do not install another Skill.
 
-[TODO: Choose the structure that best fits this skill's purpose. Common patterns:
+```bash
+python3 .agents/skills/codoop-autopost/scripts/bootstrap.py
+```
 
-**1. Workflow-Based** (best for sequential processes)
-- Works well when there are clear step-by-step procedures
-- Example: DOCX skill with "Workflow Decision Tree" -> "Reading" -> "Creating" -> "Editing"
-- Structure: ## Overview -> ## Workflow Decision Tree -> ## Step 1 -> ## Step 2...
+`FIRECRAWL_API_KEY` is required only to inspect sources. `X_CONSUMER_KEY`, `X_CONSUMER_SECRET`, `X_ACCESS_TOKEN`, and `X_ACCESS_SECRET` are required only for live publication. Use `FIRECRAWL_API_URL` for a compatible self-hosted endpoint. Never write credentials to the database or a draft.
 
-**2. Task-Based** (best for tool collections)
-- Works well when the skill offers different operations/capabilities
-- Example: PDF skill with "Quick Start" -> "Merge PDFs" -> "Split PDFs" -> "Extract Text"
-- Structure: ## Overview -> ## Quick Start -> ## Task Category 1 -> ## Task Category 2...
+## Workflow
 
-**3. Reference/Guidelines** (best for standards or specifications)
-- Works well for brand guidelines, coding standards, or requirements
-- Example: Brand styling with "Brand Guidelines" -> "Colors" -> "Typography" -> "Features"
-- Structure: ## Overview -> ## Guidelines -> ## Specifications -> ## Usage...
+1. Discover candidate discussions:
 
-**4. Capabilities-Based** (best for integrated systems)
-- Works well when the skill provides multiple interrelated features
-- Example: Product Management with "Core Capabilities" -> numbered capability list
-- Structure: ## Overview -> ## Core Capabilities -> ### 1. Feature -> ### 2. Feature...
+   ```bash
+   python3 .agents/skills/codoop-autopost/scripts/autopost.py discover "TOPIC"
+   ```
 
-Patterns can be mixed and matched as needed. Most skills combine patterns (e.g., start with task-based, add workflow for complex operations).
+   Score candidates for relevance, recency, engagement, and whether primary evidence is likely available. `last30days` is discovery-only.
 
-Delete this entire "Structuring This Skill" section when done - it's just guidance.]
+2. Find and inspect primary sources. Prefer official announcements, original reporting, papers, or the named person's original post. Read each candidate URL with Firecrawl:
 
-## [TODO: Replace with the first main section based on chosen structure]
+   ```bash
+   python3 .agents/skills/codoop-autopost/scripts/autopost.py scrape "URL"
+   ```
 
-[TODO: Add content here. See examples in existing skills:
-- Code samples for technical skills
-- Decision trees for complex workflows
-- Concrete examples with realistic user requests
-- References to scripts/templates/references as needed]
+   Exclude a claim if its source is secondary, unavailable, conflicting, or insufficient. Keep the claim, source URL, source type, publication date, and a short exact excerpt.
 
-## Resources (optional)
+3. Draft from verified evidence only. State the audience and the author's angle before writing. Clearly distinguish verified facts, attributed outside views, and the author's analysis. Keep X text to 280 characters. Create the local draft, then attach every claim it relies on:
 
-Create only the resource directories this skill actually needs. Delete this section if no resources are required.
+   ```bash
+   python3 .agents/skills/codoop-autopost/scripts/autopost.py draft "TOPIC" "POST TEXT"
+   python3 .agents/skills/codoop-autopost/scripts/autopost.py evidence DRAFT_ID "CLAIM" "URL" "SOURCE TYPE" "EXCERPT" --published-at "YYYY-MM-DD"
+   ```
 
-### scripts/
-Executable code (Python/Bash/etc.) that can be run directly to perform specific operations.
+   Edit for clarity and the user's voice, but do not change a fact, number, quotation, or source. If an edit needs a factual change, re-verify it first.
 
-**Examples from other skills:**
-- PDF skill: `fill_fillable_fields.py`, `extract_form_field_info.py` - utilities for PDF manipulation
-- DOCX skill: `document.py`, `utilities.py` - Python modules for document processing
+4. Ask for review. Do not call `approve` unless the user explicitly identifies the draft and says to approve it. Approval fails without saved verified evidence.
 
-**Appropriate for:** Python scripts, shell scripts, or any executable code that performs automation, data processing, or specific operations.
+   ```bash
+   python3 .agents/skills/codoop-autopost/scripts/autopost.py approve DRAFT_ID
+   python3 .agents/skills/codoop-autopost/scripts/autopost.py schedule DRAFT_ID "2026-08-01T09:00:00-07:00"
+   ```
 
-**Note:** Scripts may be executed without loading into context, but can still be read by Codex for patching or environment adjustments.
+5. Inspect the due queue before live publication:
 
-### references/
-Documentation and reference material intended to be loaded into context to inform Codex's process and thinking.
+   ```bash
+   python3 .agents/skills/codoop-autopost/scripts/autopost.py publish-due
+   ```
 
-**Examples from other skills:**
-- Product management: `communication.md`, `context_building.md` - detailed workflow guides
-- BigQuery: API reference documentation and query examples
-- Finance: Schema documentation, company policies
+   A scheduler may invoke the same command with `--live` at the scheduled time. Only use `--live` after an explicit user instruction. A successful publication records the X ID, URL, and timestamp. A failure retains the body and error as `failed`; it is not retried automatically.
 
-**Appropriate for:** In-depth documentation, API references, database schemas, comprehensive guides, or any detailed information that Codex should reference while working.
+## Non-negotiable rules
 
-### assets/
-Files not intended to be loaded into context, but rather used within the output Codex produces.
-
-**Examples from other skills:**
-- Brand styling: PowerPoint template files (.pptx), logo files
-- Frontend builder: HTML/React boilerplate project directories
-- Typography: Font files (.ttf, .woff2)
-
-**Appropriate for:** Templates, boilerplate code, document templates, images, icons, fonts, or any files meant to be copied or used in the final output.
-
----
-
-**Not every skill requires all three types of resources.**
+- Publish only one approved X post. Do not automate likes, follows, replies, DMs, or browser activity.
+- Do not use browser cookies or browser automation to publish.
+- Do not infer a primary source from a trend. Cite only sources actually inspected.
+- Do not silently retry a failed post or create a second post for a published draft.
