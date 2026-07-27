@@ -4,7 +4,7 @@
 
 ## 目标
 
-发布一个可组合的 `codoop-autopost` Skill Pack。普通用户只安装一个 `codoop-autopost` 插件，即可执行“热点发现 → 一手来源核验 → 草稿 → 人工批准 → X 定时发布”；`last30days`、`firecrawl`、`social-content`、`copy-editing` 和 `x-twitter` 仅作为可选的独立入口。
+发布一个可组合的 `codoop-autopost` Skill Pack。普通用户只安装一个 `codoop-autopost` 插件，即可执行“热点发现 → 一手来源核验 → 草稿 → 人工批准 → X 定时发布”；主插件同时提供 `last30days`、`firecrawl`、`social-content`、`copy-editing` 和 `x-twitter` 能力，并保留它们的独立入口。
 
 用户仍需自行提供运行环境和账户凭据：Python、Firecrawl 服务凭据（或自托管地址）、X Developer OAuth 凭据，以及其所用 Agent/模型的凭据。
 
@@ -12,12 +12,12 @@
 
 | 阶段 | codoop-autopost 内部组件 | 上游复用策略 |
 | --- | --- | --- |
-| 热点发现 | `discover` | 首次发现时自动拉取并固定 `last30days` 的 MIT 运行时到用户数据目录 `~/.local/share/codoop-autopost/last30days`；不要求用户额外安装或初始化该 Skill。 |
+| 热点发现 | `discover` | 用户直接发起发现时，主插件自动拉取并固定 `last30days` 的 MIT 运行时到用户数据目录 `~/.local/share/codoop-autopost/last30days`。 |
 | 一手来源核验 | `verify` | 用一个小型 Firecrawl HTTP 客户端调用用户配置的 API 或兼容自托管端点；不复制或捆绑 Firecrawl 的 AGPL 源码。 |
 | 写作与润色 | `draft`、`edit` | 将适合本项目的写作、语气和事实保护规则写进本 Skill；不在运行时调用外部 `social-content`、`copy-editing` Skill。 |
 | X 发布 | `publish` | 只保留 X 官方 API 的 OAuth 发帖能力。可审计地复用/改写 `x-twitter` 的 MIT 发布路径，但不暴露搜索、互动、关注、回复或浏览器自动化能力。 |
 
-主 Skill 只编排公开的子 Skill；它们也各自是完整的公开入口。`last30days` 的上游运行时仍初始化到用户数据目录，避免将供应商代码写入插件缓存。
+主插件提供完整工作流；各子 Skill 也各自提供独立入口。`last30days` 的上游运行时仍初始化到用户数据目录，避免将供应商代码写入插件缓存。
 
 ## 不可绕过的安全门
 
@@ -36,6 +36,7 @@
 
 - 六个公开 Skill 入口位于 `skills/`，并由根目录的 Codex、Claude 和 Agent Skills 插件清单分别发布。
 - 一个本地 SQLite 文件保存证据、草稿、批准和发布记录；热点候选由 `last30days` 输出供人工筛选。
+- 运营项目将每次内容操作保存在 `tickets/<ticket-id>/`，其中按 `discovery/`、`verification/`、`writing/`、`review/` 和 `publish/` 保存可审核产物；`ticket.toml` 维护 `draft`、`pending`、`done` 状态。
 - 一个 CLI/Skill 命令用于列出待审核稿、显式批准、安排发布时间以及执行 `publish-due`。
 - 默认 dry-run；真实发布须同时满足已批准状态和显式 `--live` 开关。
 - 用户凭据放在每个运营项目根目录的 `config.toml`；环境变量可覆盖，真实凭据绝不写入工单或 SQLite。

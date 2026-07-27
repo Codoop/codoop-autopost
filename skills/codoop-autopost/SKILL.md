@@ -9,7 +9,7 @@ Run the evidence-first workflow. Never treat a trending discussion as a fact. Ne
 
 ## First use
 
-This orchestration Skill includes the runtime it needs. `last30days`, `firecrawl`, `social-content`, `copy-editing`, and `x-twitter` remain independently usable sibling Skills, but none is a prerequisite. Set the main Skill directory once for the commands below:
+This orchestration Skill includes the runtime it needs. The installed `codoop-autopost` plugin provides `last30days`, `firecrawl`, `social-content`, `copy-editing`, and `x-twitter` together, while each remains independently usable. Set the main Skill directory once for the commands below:
 
 ```bash
 cd /path/to/content-operations
@@ -17,6 +17,10 @@ AUTOPOST_DIR="${CODEX_HOME:-$HOME/.codex}/skills/codoop-autopost"
 ```
 
 Copy `$AUTOPOST_DIR/config.example.toml` to `./config.toml` in the content-operations workspace, add Firecrawl and X credentials, then restrict it to the current user (`chmod 600 ./config.toml`). Firecrawl is required only to inspect sources; X credentials are required only for live publication. Environment variables override the file, and `CODOOP_AUTOPOST_CONFIG` can select another config path. Run scheduled commands with this workspace as their working directory. Never write credentials to the database or a draft.
+
+## Ticket workspace
+
+Create one folder under `tickets/` for every content operation. Keep its staged artifacts in `discovery/`, `verification/`, `writing/`, `review/`, and `publish/`. The root `ticket.toml` uses only `draft`, `pending`, and `done`: begin in `draft`; move to `pending` only after creating `review/final.md`; move to `done` only after a successful publication is recorded in `publish/receipt.json`. Keep a publish failure in `pending` with its reason in `publish/receipt.json` for human action.
 
 ## Workflow
 
