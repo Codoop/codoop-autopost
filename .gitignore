@@ -1,5 +1,5 @@
-# local config (copy from codoop_flow.toml.example)
-codoop_flow.toml
+# private content-operation credentials
+config.toml
 
 # python
 __pycache__/

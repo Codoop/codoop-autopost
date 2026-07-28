@@ -31,14 +31,26 @@ install_to() {
   echo "Installed $skill to $target/$skill"
 }
 
+install_shared() {
+  local target="$1"
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "[dry-run] copy $SOURCE/_shared -> $target/_shared"
+    return
+  fi
+  mkdir -p "$target/_shared"
+  cp -R "$SOURCE/_shared/." "$target/_shared/"
+}
+
 SKILLS=("$SKILL")
 if [[ "$SKILL" == "all" ]]; then
   SKILLS=(codoop-autopost-init codoop-content-ticket grilling last30days firecrawl social-content copy-editing x-twitter)
 fi
 
 if [[ "$AGENT" == "auto" || "$AGENT" == "codex" || "$AGENT" == "all" ]]; then
+  install_shared "${CODEX_HOME:-$HOME/.codex}/skills"
   for skill in "${SKILLS[@]}"; do install_to "${CODEX_HOME:-$HOME/.codex}/skills" "$skill"; done
 fi
 if [[ "$AGENT" == "auto" || "$AGENT" == "claude" || "$AGENT" == "all" ]]; then
+  install_shared "${CLAUDE_HOME:-$HOME/.claude}/skills"
   for skill in "${SKILLS[@]}"; do install_to "${CLAUDE_HOME:-$HOME/.claude}/skills" "$skill"; done
 fi

@@ -1,0 +1,15 @@
+# Created by codoop-autopost-init. Keep this file private.
+# Empty values are valid until the matching capability is used.
+# Firecrawl verifies primary-source URLs; create its API key at https://www.firecrawl.dev/.
+
+[firecrawl]
+api_key = ""
+api_url = "https://api.firecrawl.dev/v2"
+
+[x]
+# Create an X Developer App, enable user write permission, then generate Keys and Tokens.
+# https://developer.x.com/en/portal/dashboard
+consumer_key = ""
+consumer_secret = ""
+access_token = ""
+access_secret = ""

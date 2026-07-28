@@ -9,18 +9,22 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
 import tomllib
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Callable
 from urllib import parse, request
 
 
-STATUSES = {"draft", "pending", "done"}
+STATUSES = {"draft", "pending", "done", "discarded"}
+SOURCE_LABEL = re.compile(r"^\s*Sources?\s*:", re.IGNORECASE)
+URL = re.compile(r"https?://\S+")
+DUPLICATE_WINDOW_DAYS = 14
 
 
 def utc_now() -> str:
@@ -158,10 +162,9 @@ def last30days_argv(topic: str, script: Path) -> list[str]:
 
 def discovery_script() -> Path:
     configured = os.environ.get("CODOOP_LAST30DAYS_DIR")
-    root = Path(configured) if configured else Path(
-        os.environ.get("CODOOP_AUTOPOST_HOME", Path.home() / ".local" / "share" / "codoop-autopost")
-    ) / "last30days"
-    return root / "skills" / "last30days" / "scripts" / "last30days.py"
+    if configured:
+        return Path(configured) / "skills" / "last30days" / "scripts" / "last30days.py"
+    return Path(__file__).parents[1] / "last30days" / "vendor" / "scripts" / "last30days.py"
 
 
 def ensure_discovery_runtime() -> Path:
@@ -170,8 +173,7 @@ def ensure_discovery_runtime() -> Path:
         return script
     if os.environ.get("CODOOP_LAST30DAYS_DIR"):
         raise RuntimeError("CODOOP_LAST30DAYS_DIR must point to an initialized last30days runtime")
-    subprocess.run([sys.executable, str(Path(__file__).with_name("bootstrap.py"))], check=True, timeout=300)
-    return script
+    raise RuntimeError("bundled last30days runtime is missing; reinstall codoop-autopost")
 
 
 def discover(topic: str) -> dict:
@@ -215,6 +217,7 @@ class TicketStore:
         self._write_text(directory / "discovery" / "raw.json", "{}\n")
         self._write_text(directory / "discovery" / "candidates.md", "# Candidates\n")
         self._write_text(directory / "discovery" / "selection.md", "# Selection\n")
+        self._write_text(directory / "discovery" / "duplicate-check.md", "# Duplicate check\n")
         self._write_text(directory / "verification" / "evidence.md", "# Evidence\n")
         self._write_text(directory / "verification" / "claims.md", "# Claims\n")
         item = {
@@ -243,6 +246,43 @@ class TicketStore:
             self._write_text(directory / path, f"{body}\n")
         item["body"] = body
         item["content_hash"] = hashlib.sha256(body.encode()).hexdigest()
+        item["updated_at"] = utc_now()
+        self._write_ticket(directory, item)
+        return self.get(ticket_id)
+
+    def discover(self, ticket_id: str) -> dict:
+        item = self._require_status(ticket_id, "draft")
+        result = discover(item["topic"])
+        directory = self._directory(ticket_id)
+        self._write_text(directory / "discovery" / "raw.json", f"{json.dumps(result, ensure_ascii=False, indent=2)}\n")
+        item["discovered_at"] = utc_now()
+        item["updated_at"] = utc_now()
+        self._write_ticket(directory, item)
+        return result
+
+    def dedupe(self, ticket_id: str, candidate_url: str) -> dict:
+        item = self._require_status(ticket_id, "draft")
+        candidate = self._canonical_url(candidate_url)
+        matches = self._recent_source_matches(ticket_id, candidate)
+        directory = self._directory(ticket_id)
+        if matches:
+            self._write_duplicate_check(directory, "discarded", candidate, matches, "Same source URL appeared in a recent pending or published ticket.")
+            item["status"] = "discarded"
+            item["discarded_at"] = utc_now()
+        else:
+            self._write_duplicate_check(directory, "clear", candidate, (), "No matching source URL in recent pending or published tickets.")
+        item["updated_at"] = utc_now()
+        self._write_ticket(directory, item)
+        return {"decision": "discarded" if matches else "clear", "matches": matches, "ticket": self.get(ticket_id)}
+
+    def discard(self, ticket_id: str, reason: str) -> dict:
+        item = self._require_status(ticket_id, "draft")
+        if not reason.strip():
+            raise ValueError("discard reason is required")
+        directory = self._directory(ticket_id)
+        self._write_duplicate_check(directory, "discarded", None, (), reason.strip())
+        item["status"] = "discarded"
+        item["discarded_at"] = utc_now()
         item["updated_at"] = utc_now()
         self._write_ticket(directory, item)
         return self.get(ticket_id)
@@ -303,6 +343,8 @@ class TicketStore:
         final = self._directory(ticket_id) / "review" / "final.md"
         if not final.is_file() or not final.read_text().strip():
             raise ValueError("review/final.md is required before submission")
+        if any(SOURCE_LABEL.match(line) and not URL.search(line) for line in final.read_text().splitlines()):
+            raise ValueError("source labels in review/final.md must include a direct URL")
         item["status"] = "pending"
         item["updated_at"] = utc_now()
         self._write_ticket(self._directory(ticket_id), item)
@@ -329,6 +371,27 @@ class TicketStore:
         item["updated_at"] = utc_now()
         self._write_text(self._directory(ticket_id) / "publish" / "schedule.toml", f"platform = \"x\"\nscheduled_at = {json.dumps(scheduled_at)}\n")
         self._write_ticket(self._directory(ticket_id), item)
+        return self.get(ticket_id)
+
+    def retry(self, ticket_id: str) -> dict:
+        item = self._require_status(ticket_id, "pending")
+        directory = self._directory(ticket_id)
+        receipt = directory / "publish" / "receipt.json"
+        if not receipt.is_file():
+            raise ValueError("a failed publish receipt is required before retrying")
+        try:
+            failure = json.loads(receipt.read_text())
+        except json.JSONDecodeError:
+            raise RuntimeError(f"invalid publish receipt: {receipt}") from None
+        if failure.get("status") != "failed":
+            raise ValueError("only a failed publish can be retried")
+        attempts = directory / "publish" / "attempts"
+        attempts.mkdir(exist_ok=True)
+        self._write_json(attempts / f"failed-{utc_now().replace(':', '-')}.json", failure)
+        receipt.unlink()
+        item["retried_at"] = utc_now()
+        item["updated_at"] = utc_now()
+        self._write_ticket(directory, item)
         return self.get(ticket_id)
 
     def due(self, now: datetime | None = None) -> list[dict]:
@@ -383,6 +446,49 @@ class TicketStore:
             raise ValueError("invalid ticket id")
         return self.tickets / ticket_id
 
+    @staticmethod
+    def _canonical_url(value: str) -> str:
+        parsed = parse.urlsplit(value.strip().rstrip(".,;:)]}"))
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("candidate URL must be an absolute http(s) URL")
+        query = [(key, item) for key, item in parse.parse_qsl(parsed.query, keep_blank_values=True) if not key.lower().startswith("utm_") and key.lower() not in {"fbclid", "gclid"}]
+        path = parsed.path.rstrip("/") or "/"
+        return parse.urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), path, parse.urlencode(sorted(query)), ""))
+
+    def _recent_source_matches(self, ticket_id: str, candidate_url: str) -> list[dict]:
+        cutoff = datetime.now(UTC) - timedelta(days=DUPLICATE_WINDOW_DAYS)
+        matches = []
+        for item in self.list():
+            if item["id"] == ticket_id or item["status"] not in {"pending", "done"}:
+                continue
+            if datetime.fromisoformat(item["created_at"]).astimezone(UTC) < cutoff:
+                continue
+            evidence = self._directory(item["id"]) / "verification" / "evidence.md"
+            if not evidence.is_file():
+                continue
+            urls = set()
+            for value in URL.findall(evidence.read_text()):
+                try:
+                    urls.add(self._canonical_url(value))
+                except ValueError:
+                    continue
+            if candidate_url in urls:
+                matches.append({"ticket_id": item["id"], "status": item["status"], "url": candidate_url})
+        return matches
+
+    @staticmethod
+    def _write_duplicate_check(directory: Path, decision: str, candidate_url: str | None, matches: list[dict] | tuple, reason: str) -> None:
+        lines = ["# Duplicate check", "", f"Decision: {decision}"]
+        if candidate_url:
+            lines.append(f"Candidate URL: {candidate_url}")
+        lines.extend((f"Window: previous {DUPLICATE_WINDOW_DAYS} days", "", "## Matches"))
+        if matches:
+            lines.extend(f"- {item['ticket_id']} ({item['status']}): {item['url']}" for item in matches)
+        else:
+            lines.append("- None")
+        lines.extend(("", "## Reason", reason, ""))
+        TicketStore._write_text(directory / "discovery" / "duplicate-check.md", "\n".join(lines))
+
     def require_standards(self) -> None:
         missing = [name for name in ("PROJECT.md", "VOICE.md") if not (self.workspace / name).is_file() or not (self.workspace / name).read_text().strip()]
         if missing:
@@ -397,7 +503,7 @@ class TicketStore:
     def _write_ticket(self, directory: Path, item: dict) -> None:
         keys = (
             "id", "topic", "body", "platform", "content_hash", "status", "verified_evidence_count", "approved_at", "scheduled_at",
-            "published_at", "created_at", "updated_at",
+            "published_at", "discovered_at", "retried_at", "discarded_at", "created_at", "updated_at",
         )
         lines = []
         for key in keys:
@@ -438,12 +544,21 @@ def main() -> int:
     schedule = commands.add_parser("schedule")
     schedule.add_argument("ticket_id")
     schedule.add_argument("when", help="ISO-8601 timestamp with timezone")
+    retry = commands.add_parser("retry", help="Manually re-enable a failed, approved, scheduled post.")
+    retry.add_argument("ticket_id")
+    retry.add_argument("--confirmed-not-published", action="store_true")
     listing = commands.add_parser("list")
     listing.add_argument("--status", choices=sorted(STATUSES))
     scrape = commands.add_parser("scrape", help="Read a candidate primary source through Firecrawl.")
     scrape.add_argument("url")
     discover_command = commands.add_parser("discover", help="Find recent discussion candidates with bundled last30days.")
-    discover_command.add_argument("topic")
+    discover_command.add_argument("ticket_id")
+    dedupe = commands.add_parser("dedupe", help="Discard a selected candidate when its source URL was recently used.")
+    dedupe.add_argument("ticket_id")
+    dedupe.add_argument("candidate_url")
+    discard = commands.add_parser("discard", help="Record a human or Agent duplicate decision before source verification.")
+    discard.add_argument("ticket_id")
+    discard.add_argument("reason")
     due = commands.add_parser("publish-due", help="Publish due, approved posts only with --live.")
     due.add_argument("--live", action="store_true")
     args = parser.parse_args()
@@ -463,6 +578,10 @@ def main() -> int:
         result = TicketStore(args.workspace).approve(args.ticket_id)
     elif args.command == "schedule":
         result = TicketStore(args.workspace).schedule(args.ticket_id, datetime.fromisoformat(args.when))
+    elif args.command == "retry":
+        if not args.confirmed_not_published:
+            raise RuntimeError("retry requires --confirmed-not-published after human inspection")
+        result = TicketStore(args.workspace).retry(args.ticket_id)
     elif args.command == "scrape":
         settings = Settings.load()
         api_key = settings.firecrawl_api_key
@@ -470,7 +589,11 @@ def main() -> int:
             raise RuntimeError("FIRECRAWL_API_KEY is required")
         result = {"url": args.url, "markdown": Firecrawl(settings.firecrawl_api_url, api_key).scrape(args.url)}
     elif args.command == "discover":
-        result = discover(args.topic)
+        result = TicketStore(args.workspace).discover(args.ticket_id)
+    elif args.command == "dedupe":
+        result = TicketStore(args.workspace).dedupe(args.ticket_id, args.candidate_url)
+    elif args.command == "discard":
+        result = TicketStore(args.workspace).discard(args.ticket_id, args.reason)
     elif args.command == "publish-due":
         store = TicketStore(args.workspace)
         if not args.live:

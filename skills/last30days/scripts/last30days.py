@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone last30days launcher for the codoop skill pack."""
+"""Run the vendored last30days runtime for the codoop skill pack."""
 
 import argparse
 import os
@@ -8,17 +8,14 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(os.environ.get("CODOOP_LAST30DAYS_DIR", Path.home() / ".local" / "share" / "last30days" / "runtime"))
-REPOSITORY = "https://github.com/mvanhorn/last30days-skill.git"
-VERSION = "v3.3.0"
-
-
 def ensure() -> Path:
-    script = ROOT / "skills" / "last30days" / "scripts" / "last30days.py"
-    if script.is_file():
-        return script
-    ROOT.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["git", "clone", "--depth", "1", "--branch", VERSION, REPOSITORY, str(ROOT)], check=True)
+    configured = os.environ.get("CODOOP_LAST30DAYS_DIR")
+    if configured:
+        script = Path(configured) / "skills" / "last30days" / "scripts" / "last30days.py"
+    else:
+        script = Path(__file__).parents[1] / "vendor" / "scripts" / "last30days.py"
+    if not script.is_file():
+        raise RuntimeError("last30days runtime is missing; reinstall codoop-autopost")
     return script
 
 
