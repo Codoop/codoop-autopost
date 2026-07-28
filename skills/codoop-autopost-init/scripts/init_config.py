@@ -11,11 +11,13 @@ def main() -> int:
     parser.add_argument("--workspace", default=".", help="content-operations workspace (default: current directory)")
     args = parser.parse_args()
     workspace = Path(args.workspace).resolve()
+    workspace.mkdir(parents=True, exist_ok=True)
+    for name in ("content-leads", "content-tickets"):
+        (workspace / name).mkdir(exist_ok=True)
     destination = workspace / "config.toml"
     if destination.exists():
         print(f"Preserved existing {destination}")
         return 0
-    workspace.mkdir(parents=True, exist_ok=True)
     source = Path(__file__).parents[1] / "config.example.toml"
     shutil.copyfile(source, destination)
     destination.chmod(0o600)

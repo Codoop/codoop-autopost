@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.1-alpha.3] - 2026-07-28
+
+### Added
+
+- Add `codoop-content-discovery`, which rotates project discovery directions, runs bundled `last30days`, and reviews every new candidate with a fresh subagent using the pinned unchanged `agency-agents` Marketing `Twitter Engager` persona.
+- Add a permanent local `content-leads` queue with discovery runs plus atomic `available`, `claimed`, `consumed`, and `rejected` transitions.
+- Add explicit human promotion with a required reason and optional manual post-performance recording.
+
+### Changed
+
+- Make `codoop-content-ticket` claim an unused lead instead of accepting an arbitrary topic or running discovery itself.
+- Bind duplicate checks and Firecrawl source access to the claimed lead URL.
+- Require a fresh post-verification value review, verified evidence, and a saved primary-source snapshot before writing or submission.
+- Consume a lead only after successful X publication; retain claimed state after technical failure.
+- Split project overview documentation into separate English and Simplified Chinese files.
+
 ## [0.0.1-alpha.2] - 2026-07-27
 
 ### Added

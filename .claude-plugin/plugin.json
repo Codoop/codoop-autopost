@@ -1,7 +1,7 @@
 {
   "name": "codoop-autopost",
-  "version": "0.0.1-alpha.2",
-  "description": "Content-project standards and evidence-first content tickets with explicit human approval before publication.",
+  "version": "0.0.1-alpha.3",
+  "description": "Value-reviewed content leads and evidence-first content tickets with explicit human approval before publication.",
   "homepage": "https://github.com/Codoop/codoop-autopost",
   "repository": "https://github.com/Codoop/codoop-autopost",
   "license": "MIT"

@@ -17,6 +17,12 @@
       "category": "Productivity"
     },
     {
+      "name": "codoop-content-discovery",
+      "source": {"source": "local", "path": "skills/codoop-content-discovery"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
+    },
+    {
       "name": "last30days",
       "source": {"source": "local", "path": "skills/last30days"},
       "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},

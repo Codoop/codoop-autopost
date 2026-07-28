@@ -43,7 +43,7 @@ install_shared() {
 
 SKILLS=("$SKILL")
 if [[ "$SKILL" == "all" ]]; then
-  SKILLS=(codoop-autopost-init codoop-content-ticket grilling last30days firecrawl social-content copy-editing x-twitter)
+  SKILLS=(codoop-autopost-init codoop-content-discovery codoop-content-ticket grilling last30days firecrawl social-content copy-editing x-twitter)
 fi
 
 if [[ "$AGENT" == "auto" || "$AGENT" == "codex" || "$AGENT" == "all" ]]; then

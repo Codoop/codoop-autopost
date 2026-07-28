@@ -90,9 +90,9 @@ Accept examples as optional input. Extract only reusable rules; never copy a sam
 
 ## 完成
 
-After both documents are confirmed, ensure `content-tickets/` exists. Then run the bundled `scripts/run.sh` beside this `SKILL.md`, with `--workspace .`; it selects Python 3.12+ before calling `init_config.py`.
+After both documents are confirmed, ensure `content-leads/` and `content-tickets/` exist. Then run the bundled `scripts/run.sh` beside this `SKILL.md`, with `--workspace .`; it selects Python 3.12+ before calling `init_config.py`.
 
-两份文件确认后，确保 `content-tickets/` 存在。随后运行与此 `SKILL.md` 同目录的 `scripts/run.sh --workspace .`；它会选择 Python 3.12+ 并调用 `init_config.py`。
+两份文件确认后，确保 `content-leads/` 与 `content-tickets/` 存在。随后运行与此 `SKILL.md` 同目录的 `scripts/run.sh --workspace .`；它会选择 Python 3.12+ 并调用 `init_config.py`。
 
 - If `config.toml` is missing, create it from `config.example.toml` and make it owner-readable only where the operating system supports file modes.
 - If it already exists, preserve it unchanged. Never display, read back, or place its values in a ticket.
@@ -118,6 +118,6 @@ Tell the user:
 - `[x].consumer_key` 和 `[x].consumer_secret` 用于识别用户的 X Developer App。`[x].access_token` 和 `[x].access_secret` 授权工作流代表该 X 账号发帖。在 [X Developer Console](https://developer.x.com/en/portal/dashboard) 创建或选择 App，开启带写权限的用户认证，然后生成 Keys and Tokens；若 App 权限变化，重新生成用户令牌。
 - 这些值是密钥：绝不可粘贴到聊天、工单、`PROJECT.md`、`VOICE.md`、Git 或截图中。只存放在本地 `config.toml`，或以环境变量提供给可信的定时器。
 
-State that the project is ready for `codoop-content-ticket`. Never create a content ticket during initialization.
+State that the project is ready for `codoop-content-discovery`; production with `codoop-content-ticket` comes after it has saved a lead. Never run discovery or create a content ticket during initialization.
 
-说明项目已经可以使用 `codoop-content-ticket`。初始化期间绝不可创建内容工单。
+说明项目已经可以使用 `codoop-content-discovery`；它保存 lead 后再使用 `codoop-content-ticket` 生产内容。初始化期间绝不可运行发现或创建内容工单。

@@ -1,7 +1,7 @@
 {
   "name": "codoop-autopost",
-  "version": "0.0.1-alpha.2",
-  "description": "Define content standards, then run evidence-first content tickets with human approval before publication.",
+  "version": "0.0.1-alpha.3",
+  "description": "Discover valuable content leads, then verify and publish them with human approval.",
   "author": {
     "name": "Codoop",
     "url": "https://github.com/Codoop"
@@ -13,15 +13,16 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "codoop-autopost",
-    "shortDescription": "Set standards, then publish verified content",
-    "longDescription": "Define a content project's vertical and voice, then discover, verify, review, and publish one evidence-first content ticket with explicit human approval.",
+    "shortDescription": "Find valuable leads, then verify and publish",
+    "longDescription": "Define a content project, review recent discussions into a reusable lead pool, then verify, review, and publish one evidence-first X post with explicit human approval.",
     "developerName": "Codoop",
     "category": "Productivity",
     "capabilities": ["Read", "Write", "Interactive"],
     "websiteURL": "https://github.com/Codoop/codoop-autopost",
     "defaultPrompt": [
       "Use codoop-autopost-init to set up this content-operations project.",
-      "Use codoop-content-ticket to find a topic, verify primary sources, and prepare a post for my approval.",
+      "Use codoop-content-discovery to find and value-review content leads.",
+      "Use codoop-content-ticket to claim a lead, verify its primary source, and prepare a post for my approval.",
       "Show my approved posts that are due for publication."
     ],
     "brandColor": "#111827"
