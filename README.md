@@ -149,6 +149,8 @@ Use codoop-content-discovery to discover and review content leads.
 
 The review uses a pinned, unchanged copy of the `agency-agents` Marketing `Twitter Engager` persona. Every run starts one fresh subagent and appends only current project context and task purpose.
 
+For scheduled discovery, trigger an Agent task that runs this whole Skill. Do not schedule the low-level `start-discovery` command: it only collects raw candidates and cannot start the review subagent. Discovery chooses its direction and a query distinct from the previous run automatically; it does not wait for user input.
+
 The pre-verification reviewer cannot open links, call Firecrawl, or treat discovery summaries as facts.
 
 Pass bases:
@@ -171,7 +173,7 @@ If the pool has no suitable lead, production stops and asks for a discovery run.
 
 ## Non-bypassable gates
 
-- Only a first-review `go` or reasoned human promotion can enter `available`.
+- Only a candidate explicitly marked `go` in the saved first-review table, or a reasoned human promotion, can enter `available`.
 - Firecrawl cannot run before duplicate clearance.
 - The saved primary-source snapshot and explicit verified evidence must exist before the second review.
 - Every pass basis must pass a fresh second review before writing.

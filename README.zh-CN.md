@@ -149,6 +149,8 @@ content-operations/
 
 审核使用固定版本、未经修改的 `agency-agents` Marketing `Twitter Engager` 角色。每次运行都会启动一个 fresh subagent，只追加当前项目背景和本轮任务目的。
 
+定时发现必须触发 Agent 执行完整 Skill，不能直接调底层 `start-discovery` 命令；后者只收集原始候选，无法启动审核 subagent。发现会自动选择方向和与上一轮不同的 query，不等待用户输入。
+
 核验前审核者不能打开链接、调用 Firecrawl，也不能把发现摘要当作事实。
 
 通过依据：
@@ -171,7 +173,7 @@ content-operations/
 
 ## 不可绕过的门禁
 
-- 只有第一次审核的 `go` 或带理由的人工提升可以进入 `available`。
+- 只有第一次审核表中明确标为 `go` 的候选，或带理由的人工提升，才可以进入 `available`。
 - 重复检查 clear 之前不能调用 Firecrawl。
 - 一手来源快照和显式 verified evidence 都存在后，才能进行第二次审核。
 - 所有通过依据都必须在写作前通过 fresh 二审。

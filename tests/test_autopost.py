@@ -43,9 +43,9 @@ def enqueue_test_lead(store, workspace, url="https://example.com/news", title="A
         }],
     }
     with patch.object(autopost, "discover", return_value=result):
-        run = store.start_discovery("AI tools", title)
+        run = store.start_discovery("AI tools", f"{title} {url}")
     review = workspace / "content-leads" / "runs" / run["id"] / "value-review.md"
-    review.write_text(f"# Value Review\n\n{candidate_id}: go\n")
+    review.write_text(f"# Value Review\n\n| 1 | {candidate_id} | go | audience-value |\n")
     store.complete_discovery(run["id"], [f"{candidate_id}:audience-value"])
     return next(lead for lead in store.list_leads("available") if lead["candidate_id"] == candidate_id)
 
@@ -355,11 +355,15 @@ class LeadWorkflowTests(unittest.TestCase):
             ],
         }
         with patch.object(autopost, "discover", return_value=result):
-            return self.store.start_discovery("AI tools", "AI tools workflow")
+            return self.store.start_discovery("AI tools", f"AI tools workflow {url}")
 
     def _review(self, run_id: str) -> None:
         path = self.workspace / "content-leads" / "runs" / run_id / "value-review.md"
-        path.write_text("# Value Review\n\ncandidate-1: go\ncandidate-2: weak\n")
+        path.write_text(
+            "# Value Review\n\n"
+            "| 1 | candidate-1 | go | audience-value |\n"
+            "| 2 | candidate-2 | weak | none |\n"
+        )
 
     def test_discovery_run_enqueues_only_explicit_go_candidates(self):
         started = self._start()
@@ -387,6 +391,21 @@ class LeadWorkflowTests(unittest.TestCase):
 
         self.assertEqual(completed["status"], "complete")
         self.assertEqual(self.store.list_leads("available"), [])
+
+    def test_discovery_does_not_enqueue_a_candidate_without_a_go_review(self):
+        started = self._start()
+        review = self.workspace / "content-leads" / "runs" / started["id"] / "value-review.md"
+        review.write_text("# Value Review\n\n| 1 | candidate-1 | weak | none |\n")
+
+        with self.assertRaisesRegex(ValueError, "go verdict"):
+            self.store.complete_discovery(started["id"], ["candidate-1:audience-value"])
+
+    def test_discovery_rejects_the_previous_normalized_query(self):
+        started = self._start()
+
+        with patch.object(autopost, "discover", return_value={"results": []}):
+            with self.assertRaisesRegex(ValueError, "previous discovery query"):
+                self.store.start_discovery("AI tools", f"  {started['query'].upper()}  ")
 
     def test_repeated_canonical_url_updates_existing_lead_without_re_review(self):
         first = self._start()
@@ -631,6 +650,9 @@ class PluginSkillTests(unittest.TestCase):
         self.assertIn("Do not use Firecrawl, a browser, web search, or URL fetching", instructions)
         self.assertIn("review every candidate ID", instructions)
         self.assertIn("least recently used direction", instructions)
+        self.assertIn("Never schedule `scripts/run.sh start-discovery` directly", instructions)
+        self.assertIn("Do not ask the user", instructions)
+        self.assertIn("query matches the prior run", instructions)
         self.assertIn("different URL", instructions)
         self.assertIn("breakout-trend", instructions)
         self.assertIn("No candidate is worth source verification in this discovery run.", instructions)

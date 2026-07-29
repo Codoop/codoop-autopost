@@ -2,7 +2,7 @@
 
 **English** · [简体中文](./project-initialization-optimization-plan.zh-CN.md)
 
-Status: implemented in `0.0.1-alpha.3`.
+Status: implemented in `0.0.1-alpha.4`.
 
 ## Purpose
 
@@ -113,9 +113,9 @@ The workflow uses local files and atomic directory moves. It requires no databas
 
 ### Discovery
 
-Each discovery run selects one project discovery direction, saves the raw `last30days` result, and asks a fresh review subagent to evaluate every new candidate. The reviewer uses the pinned upstream Marketing `Twitter Engager` persona plus the current project context and task instructions.
+Each discovery run automatically selects a least-recently-used project direction and a query distinct from the preceding run, saves the raw `last30days` result, and asks a fresh review subagent to evaluate every new candidate. A scheduled run must invoke the complete Agent Skill, not its raw collection command. The reviewer uses the pinned upstream Marketing `Twitter Engager` persona plus the current project context and task instructions.
 
-The reviewer cannot open candidate links or treat discovery summaries as facts. A normal candidate enters `content-leads/available` only when it receives `go`; `weak` and `reject` remain in the permanent run report. Exceptional measured attention may use the limited `breakout-trend` pass basis, and a human may explicitly promote a reviewed candidate with a recorded reason.
+The reviewer cannot open candidate links or treat discovery summaries as facts. A normal candidate enters `content-leads/available` only when its saved review table explicitly records `go`; `weak` and `reject` remain in the permanent run report. Exceptional measured attention may use the limited `breakout-trend` pass basis, and a human may explicitly promote a reviewed candidate with a recorded reason.
 
 ### Production
 

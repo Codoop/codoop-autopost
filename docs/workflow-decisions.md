@@ -2,7 +2,7 @@
 
 **English** · [简体中文](./workflow-decisions.zh-CN.md)
 
-Status: implemented in `0.0.1-alpha.3`.
+Status: implemented in `0.0.1-alpha.4`.
 
 ## Goal
 
@@ -20,13 +20,13 @@ The core objective is a real reason for the target reader to comment or share, n
 | Initialization | `codoop-autopost-init` | Confirm root `PROJECT.md` and `VOICE.md` with `grilling`. |
 | Discovery | `codoop-content-discovery` + bundled `last30days` | Run one project direction and preserve raw discovery data. |
 | First value review | Pinned `marketing-twitter-engager.md` + fresh subagent | Decide whether verification is worth its cost without opening links. |
-| Lead pool | Shared Python CLI | Validate IDs, canonicalize URLs, write files, and move directories atomically. |
+| Lead pool | Shared Python CLI | Validate IDs, admit only a reviewed `go`, canonicalize URLs, write files, and move directories atomically. |
 | Content ticket | `codoop-content-ticket` | Claim or resume one lead; never accept an arbitrary topic. |
 | Source verification | Small Firecrawl API client | Fetch only the bound primary source without bundling Firecrawl AGPL source. |
 | Second value review | Same pinned persona + new fresh subagent | Decide whether writing is worthwhile from verified evidence. |
 | Publishing | Official X API client | Publish only explicitly approved scheduled content; never automate engagement. |
 
-The intelligent role writes fixed-format Markdown; the deterministic CLI handles state only. The CLI neither parses free-form review prose nor requires duplicate JSON.
+The intelligent role writes fixed-format Markdown; the deterministic CLI handles state only. Before admitting a lead, it checks the selected candidate's fixed table row for `go`; it does not interpret review prose or require duplicate JSON.
 
 ## Upstream persona
 
@@ -66,7 +66,7 @@ content-leads/
 ```
 
 - `runs/R-...` permanently preserves `run.toml`, `raw.json`, and the full `value-review.md`.
-- Only `go` enters `available`; discovery-stage `weak` and `reject` remain in the run.
+- Only a candidate explicitly marked `go` in the saved review table enters `available`; discovery-stage `weak` and `reject` remain in the run.
 - Exact canonical URL repeats refresh the existing lead instead of being reviewed again.
 - The reviewer rejects same-event different-URL duplicates; material developments may become new related leads.
 - `available → claimed` uses an atomic same-filesystem directory move.
@@ -77,6 +77,8 @@ content-leads/
 Records are retained indefinitely without SQLite, a message queue, a daemon, hidden state, or a Git-driven state machine.
 
 ## Automatic selection and human promotion
+
+Scheduled discovery triggers the complete Agent Skill, not its `start-discovery` collection command. The Skill selects a least-recently-used direction and a query distinct from the preceding run without user input, then starts a fresh review subagent.
 
 Production first resumes interrupted claimed work. Otherwise it selects the newest discovery run first and reviewer rank within the run.
 

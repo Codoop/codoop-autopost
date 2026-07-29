@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "codoop-autopost",
-      "version": "0.0.1-alpha.3",
+      "version": "0.0.1-alpha.4",
       "source": ".",
       "description": "Review recent discussions into a reusable lead pool, then verify and publish only valuable, explicitly approved X content.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
@@ -18,7 +18,7 @@
     },
     {
       "name": "codoop-content-discovery",
-      "version": "0.0.1-alpha.3",
+      "version": "0.0.1-alpha.4",
       "source": "skills/codoop-content-discovery/",
       "description": "Discover and value-review recent discussions before saving worthwhile unverified leads.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
@@ -27,7 +27,7 @@
     },
     {
       "name": "last30days",
-      "version": "0.0.1-alpha.3",
+      "version": "0.0.1-alpha.4",
       "source": "skills/last30days/",
       "description": "Discover recent discussion candidates without treating them as verified facts.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
@@ -36,7 +36,7 @@
     },
     {
       "name": "firecrawl",
-      "version": "0.0.1-alpha.3",
+      "version": "0.0.1-alpha.4",
       "source": "skills/firecrawl/",
       "description": "Read primary sources and extract evidence through Firecrawl.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
@@ -45,7 +45,7 @@
     },
     {
       "name": "social-content",
-      "version": "0.0.1-alpha.3",
+      "version": "0.0.1-alpha.4",
       "source": "skills/social-content/",
       "description": "Draft concise social content from verified evidence.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
@@ -54,7 +54,7 @@
     },
     {
       "name": "copy-editing",
-      "version": "0.0.1-alpha.3",
+      "version": "0.0.1-alpha.4",
       "source": "skills/copy-editing/",
       "description": "Edit copy without changing verified facts or sources.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
@@ -63,7 +63,7 @@
     },
     {
       "name": "x-twitter",
-      "version": "0.0.1-alpha.3",
+      "version": "0.0.1-alpha.4",
       "source": "skills/x-twitter/",
       "description": "Publish an explicitly approved single X post through the official API.",
       "homepage": "https://github.com/Codoop/codoop-autopost",
@@ -72,7 +72,7 @@
     },
     {
       "name": "grilling",
-      "version": "0.0.1-alpha.3",
+      "version": "0.0.1-alpha.4",
       "source": "skills/grilling/",
       "description": "Interview a user one decision at a time with recommended answers.",
       "homepage": "https://github.com/Codoop/codoop-autopost",

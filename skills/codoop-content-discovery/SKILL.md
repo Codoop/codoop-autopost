@@ -7,6 +7,8 @@ description: Discover recent discussion candidates, review their audience value 
 
 Use this Skill to fill the local `content-leads` pool. It discovers and judges unverified leads; it does not verify sources, write posts, approve content, schedule publication, publish, or interact with social accounts.
 
+For scheduled runs, trigger an agent task that executes this entire Skill. Never schedule `scripts/run.sh start-discovery` directly: it only collects raw candidates and cannot start the required value-review subagent.
+
 Set `CONTENT_DISCOVERY_DIR` to the installed directory containing this `SKILL.md`; do not assume a fixed Codex or Claude installation path:
 
 ```bash
@@ -33,12 +35,14 @@ Resolve it relative to this Skill as `../_shared/agents/marketing-twitter-engage
 ## Workflow
 
 1. Confirm `PROJECT.md` and `VOICE.md` exist and are non-empty.
-2. Identify the discovery directions in `PROJECT.md`. Compare them with prior run metadata, then choose the least recently used direction. Run exactly one direction per invocation.
-3. Turn that direction into one concise current research query and start the run:
+2. Identify the discovery directions in `PROJECT.md`. Compare them with prior run metadata, then choose the least recently used direction. Run exactly one direction per invocation. Do not ask the user to choose a direction, query, or candidate.
+3. Turn that direction into one concise current research query. It must differ substantively from the prior run's query after case, whitespace, and punctuation normalization. Start the run:
 
    ```bash
    "$CONTENT_DISCOVERY_DIR/scripts/run.sh" start-discovery "DIRECTION" "QUERY"
    ```
+
+   If the command reports that the query matches the prior run, choose a different concrete facet of the same direction and retry. Do not ask the user; use the saved prior queries and current project context to decide.
 
 4. Read the returned `id`, `review_candidate_ids`, and the saved `content-leads/runs/RUN_ID/raw.json`. Exact canonical-URL repeats have already been removed from `review_candidate_ids` and their existing lead has been refreshed.
    Treat a different URL about the same event as a semantic duplicate unless it contains a material new development. Reject the duplicate; for a material development, record its relationship to the older event in the review.

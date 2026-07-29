@@ -205,7 +205,10 @@ class TicketStore:
         self.require_standards()
         if not direction.strip() or not query.strip():
             raise ValueError("direction and query are required")
-        result = discover(query.strip())
+        query = query.strip()
+        if self._normalized_query(query) == self._normalized_query(self._latest_discovery_query()):
+            raise ValueError("query must differ from the previous discovery query")
+        result = discover(query)
         candidates = self._candidate_results(result)
         now = utc_now()
         review_ids = []
@@ -228,7 +231,7 @@ class TicketStore:
         run = {
             "id": run_id,
             "direction": direction.strip(),
-            "query": query.strip(),
+            "query": query,
             "status": "reviewing",
             "review_candidate_ids": json.dumps(review_ids, ensure_ascii=False),
             "discovered_at": now,
@@ -246,6 +249,7 @@ class TicketStore:
         review = directory / "value-review.md"
         if not review.is_file() or not review.read_text().strip():
             raise ValueError("value-review.md is required before completing discovery")
+        review_text = review.read_text()
         result = json.loads((directory / "raw.json").read_text())
         candidates = {item["candidate_id"]: item for item in self._candidate_results(result)}
         eligible = set(json.loads(run.get("review_candidate_ids", "[]")))
@@ -259,6 +263,8 @@ class TicketStore:
                 raise ValueError(f"candidate was not eligible for review: {candidate_id}")
             if pass_basis not in PASS_BASES - {"human-override"}:
                 raise ValueError(f"invalid discovery pass basis: {pass_basis}")
+            if f"| {candidate_id} | go |" not in review_text:
+                raise ValueError("selected discovery candidate must have a go verdict in value-review.md")
             candidate = candidates[candidate_id]
             canonical = self._canonical_url(str(candidate["url"]))
             if self._find_lead_by_url(canonical):
@@ -793,6 +799,18 @@ class TicketStore:
                 if lead["canonical_url"] == canonical_url:
                     return lead
         return None
+
+    def _latest_discovery_query(self) -> str:
+        runs = [
+            self._read_toml(path / "run.toml")
+            for path in self.runs.iterdir()
+            if path.is_dir() and (path / "run.toml").is_file()
+        ]
+        return max(runs, key=lambda run: run["created_at"]).get("query", "") if runs else ""
+
+    @staticmethod
+    def _normalized_query(query: str) -> str:
+        return re.sub(r"\W+", " ", query.casefold()).strip()
 
     @staticmethod
     def _canonical_url(value: str) -> str:

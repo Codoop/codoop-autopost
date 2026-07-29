@@ -100,7 +100,7 @@ available → claimed → consumed
 - Skill/subagent 读取 Markdown 和发现结果，完成方向选择、同事件判断、过时判断、价值判断及报告写作。
 - Python CLI 只负责 ID 校验、URL 规范化、时间记录、目录创建和原子状态迁移。
 - CLI 不解析自由格式 Markdown，也不要求 subagent 额外复制一份 JSON 结论。
-- 完成发现运行时，Skill 将按排名排列的 `candidate_id:pass_basis` 传给 CLI；CLI 验证这些 ID 存在于该次 `raw.json` 且 `value-review.md` 已存在，再创建 lead。
+- 完成发现运行时，Skill 将按排名排列的 `candidate_id:pass_basis` 传给 CLI；CLI 验证这些 ID 存在于该次 `raw.json`，且在 `value-review.md` 的固定表格中明确标为 `go`，再创建 lead。
 
 ## 最小命令面
 

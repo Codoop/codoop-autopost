@@ -2,7 +2,7 @@
 
 [English](./project-initialization-optimization-plan.md) · **简体中文**
 
-状态：已在 `0.0.1-alpha.3` 实现。
+状态：已在 `0.0.1-alpha.4` 实现。
 
 ## 目的
 
@@ -113,9 +113,9 @@ content-operations/
 
 ### 热点发现
 
-每次发现运行会选择一个项目发现方向，保存原始 `last30days` 结果，并让一个全新的审核 subagent 评估所有新候选。审核者使用固定保存、未经修改的上游 Marketing `Twitter Engager` 角色，再补充当前项目背景和本次任务说明。
+每次发现运行会自动选择最久未使用的项目发现方向和与上一轮不同的 query，保存原始 `last30days` 结果，并让一个全新的审核 subagent 评估所有新候选。定时运行必须触发完整 Agent Skill，而不是底层收集命令。审核者使用固定保存、未经修改的上游 Marketing `Twitter Engager` 角色，再补充当前项目背景和本次任务说明。
 
-审核者不能打开候选链接，也不能把发现摘要当作事实。普通候选只有获得 `go` 才进入 `content-leads/available`；`weak` 和 `reject` 永久保留在本次发现报告中。数据明确显示热度异常爆发时，可以使用受限的 `breakout-trend` 通过依据；人工也可以填写理由，明确提升一个已审核候选。
+审核者不能打开候选链接，也不能把发现摘要当作事实。普通候选只有在已保存的审核表中明确标为 `go` 才进入 `content-leads/available`；`weak` 和 `reject` 永久保留在本次发现报告中。数据明确显示热度异常爆发时，可以使用受限的 `breakout-trend` 通过依据；人工也可以填写理由，明确提升一个已审核候选。
 
 ### 内容生产
 

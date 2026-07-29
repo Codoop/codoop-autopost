@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.1-alpha.4] - 2026-07-29
+
+### Changed
+
+- Make content discovery fully unattended: select directions and distinct queries automatically instead of waiting for user input.
+- Require scheduled discovery to run the full Agent Skill, including its fresh value-review subagent, rather than the raw collection command.
+- Admit a discovery candidate to `content-leads/available` only when its saved value-review table explicitly marks it `go`.
+
 ## [0.0.1-alpha.3] - 2026-07-28
 
 ### Added

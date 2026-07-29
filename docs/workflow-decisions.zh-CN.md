@@ -2,7 +2,7 @@
 
 [English](./workflow-decisions.md) · **简体中文**
 
-状态：已在 `0.0.1-alpha.3` 实现。
+状态：已在 `0.0.1-alpha.4` 实现。
 
 ## 目标
 
@@ -20,13 +20,13 @@
 | 初始化 | `codoop-autopost-init` | 用 `grilling` 确认根目录 `PROJECT.md` 和 `VOICE.md`。 |
 | 发现 | `codoop-content-discovery` + 内置 `last30days` | 每次运行一个项目方向，保存原始发现数据。 |
 | 第一次价值审核 | 固定的 `marketing-twitter-engager.md` + fresh subagent | 不访问链接，判断是否值得消耗核验成本。 |
-| 线索池 | 共享 Python CLI | 校验 ID、规范化 URL、写文件并原子移动目录。 |
+| 线索池 | 共享 Python CLI | 校验 ID、只接纳已审核的 `go`、规范化 URL、写文件并原子移动目录。 |
 | 内容工单 | `codoop-content-ticket` | 领取或恢复一条线索，不接受任意 topic。 |
 | 来源核验 | 小型 Firecrawl API 客户端 | 只抓取工单绑定的一手来源，不捆绑 Firecrawl AGPL 源码。 |
 | 第二次价值审核 | 同一固定角色 + 新的 fresh subagent | 根据已核验证据判断是否值得写。 |
 | 发布 | X 官方 API 客户端 | 只发布明确批准并排程的内容，不自动互动。 |
 
-智能角色负责写固定格式 Markdown；确定性 CLI 只负责状态。CLI 不解析自由格式审核文本，也不要求角色再复制一份 JSON。
+智能角色负责写固定格式 Markdown；确定性 CLI 只负责状态。创建线索前，CLI 只检查候选在固定表格行中是否为 `go`，不解读审核正文，也不要求角色再复制一份 JSON。
 
 ## 上游角色
 
@@ -66,7 +66,7 @@ content-leads/
 ```
 
 - `runs/R-...` 永久保存 `run.toml`、`raw.json` 和完整 `value-review.md`。
-- 只有 `go` 进入 `available`；发现阶段的 `weak` 和 `reject` 只保留在 run 中。
+- 只有审核表中明确标为 `go` 的候选进入 `available`；发现阶段的 `weak` 和 `reject` 只保留在 run 中。
 - 完全相同的规范化 URL 不重新审核，只更新已有线索。
 - 不同 URL 的同一事件由审核角色拒绝；实质新进展可以成为新的关联线索。
 - `available → claimed` 使用同一文件系统中的原子目录移动。
@@ -77,6 +77,8 @@ content-leads/
 所有记录永久保留，不使用 SQLite、消息队列、常驻服务、隐藏状态或 Git 状态机。
 
 ## 自动选择和人工提升
+
+定时发现必须触发完整的 Agent Skill，而不是其 `start-discovery` 收集命令。Skill 会在不询问用户的情况下，选择最久未使用的方向和与上一轮不同的 query，然后启动全新的审核 subagent。
 
 生产流程会先恢复中断的 claimed 工作。没有中断工作时，优先选择最新发现运行，再按该运行中的审核排名选择。
 
